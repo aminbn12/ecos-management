@@ -30,10 +30,6 @@ const TabletTaskView = () => {
       // If student has already answered or completed, reflect it
       if (progression && progression.current_station?.type === 'student_tablet') {
         const form = progression.current_station.evaluation_form;
-        if (form) {
-          // Preset time limit if needed
-          setTimeLeft(300);
-        }
       }
     } catch (err) {
       console.warn("Backend student profile offline, loading mock QCM task simulation.");
@@ -107,6 +103,22 @@ const TabletTaskView = () => {
     return () => clearInterval(interval);
   }, [loading, profileData, scanned, submitted]);
 
+  // Sync with scanned_at
+  useEffect(() => {
+    const progression = profileData?.progression;
+    if (progression?.scanned_at && progression.status === 'in_progress') {
+      const calculateTimeLeft = () => {
+        const scannedTime = new Date(progression.scanned_at).getTime();
+        const nowTime = new Date().getTime();
+        const elapsed = Math.floor((nowTime - scannedTime) / 1000);
+        const remaining = 300 - elapsed;
+        return remaining > 0 ? remaining : 0;
+      };
+      
+      setTimeLeft(calculateTimeLeft());
+    }
+  }, [profileData]);
+
   // Timer countdown
   useEffect(() => {
     if (timeLeft <= 0 || submitted || loading) return;
@@ -144,7 +156,8 @@ const TabletTaskView = () => {
       station_id: currentStation.id,
       score: parseFloat(selectedOption.points || 0),
       passed: !!selectedOption.isCorrect,
-      remarks: justification
+      remarks: justification,
+      duration: 300 - timeLeft
     };
 
     try {

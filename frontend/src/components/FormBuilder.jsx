@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import LogoImage from '../assets/logo.png';
 
 const FormBuilder = () => {
   const { logout } = useAuth();
+  const location = useLocation();
   
   // State for exam setup and dynamic data
   const [stations, setStations] = useState([]);
   const [exams, setExams] = useState([]);
+  const [selectedExamId, setSelectedExamId] = useState('');
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [examSaved, setExamSaved] = useState(false);
@@ -17,12 +20,16 @@ const FormBuilder = () => {
   const [examDate, setExamDate] = useState('');
   const [examSaving, setExamSaving] = useState(false);
 
+  // Read initial examId from navigation state on mount
   useEffect(() => {
-    if (exams.length > 0) {
-      setExamTitle(exams[0].title || '');
-      setExamDate(exams[0].date || '');
+    const initialExamId = location.state?.examId;
+    if (initialExamId) {
+      setSelectedExamId(initialExamId);
+      loadData(initialExamId);
+    } else {
+      loadData();
     }
-  }, [exams]);
+  }, [location.state?.examId]);
 
   // Station Form State
   const [stationId, setStationId] = useState('');
@@ -52,14 +59,30 @@ const FormBuilder = () => {
   const [newOptPoints, setNewOptPoints] = useState('');
   const [newOptCorrect, setNewOptCorrect] = useState(false);
 
+  // Track if criteria or options have been modified
+  const [isFormDirty, setIsFormDirty] = useState(false);
+
   // Load configuration from API or mock fallbacks
-  const loadData = async () => {
+  const loadData = async (examIdToSelect = null) => {
     try {
-      const response = await axios.get('/api/admin/stations');
+      const examId = examIdToSelect !== null ? examIdToSelect : selectedExamId;
+      const url = examId ? `/api/admin/stations?exam_id=${examId}` : '/api/admin/stations';
+      
+      const response = await axios.get(url);
       setStations(response.data.stations);
-      if (response.data.exams.length > 0) {
-        setExams(response.data.exams);
-        setExamSaved(true);
+      
+      const fetchedExams = response.data.exams || [];
+      setExams(fetchedExams);
+      
+      if (fetchedExams.length > 0) {
+        const activeExamId = examId || fetchedExams[0].id;
+        const current = fetchedExams.find(e => e.id === parseInt(activeExamId));
+        if (current) {
+          setSelectedExamId(current.id);
+          setExamTitle(current.title || '');
+          setExamDate(current.date || '');
+          setExamSaved(true);
+        }
       }
       if (response.data.examiners) {
         setExaminers(response.data.examiners);
@@ -123,32 +146,55 @@ const FormBuilder = () => {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const handleSelectExam = (id) => {
+    if (id === 'new') {
+      setSelectedExamId('');
+      setExamTitle('');
+      setExamDate('');
+      setExamSaved(false);
+      setStations([]);
+    } else {
+      const exam = exams.find(e => e.id === parseInt(id));
+      if (exam) {
+        setSelectedExamId(exam.id);
+        setExamTitle(exam.title);
+        setExamDate(exam.date);
+        setExamSaved(true);
+        loadData(exam.id);
+      }
+    }
+  };
 
   const handleSaveExam = async (e) => {
     e.preventDefault();
     if (!examTitle.trim() || !examDate) return;
     setExamSaving(true);
     try {
+      const isUpdate = !!selectedExamId;
+      const currentStatus = isUpdate ? (exams.find(e => e.id === selectedExamId)?.status || 'draft') : 'draft';
       const payload = {
-        id: exams[0]?.id || null,
+        id: selectedExamId || null,
         title: examTitle.trim(),
         date: examDate,
-        status: exams[0]?.status || 'draft'
+        status: currentStatus
       };
-      await axios.post('/api/admin/exams', payload);
-      setStatus({ type: 'success', message: 'Examen enregistré avec succès. Activez-le depuis 📜 Historique & Rapports.' });
+      const response = await axios.post('/api/admin/exams', payload);
+      const savedExam = response.data.exam;
+      setStatus({ type: 'success', message: isUpdate ? 'Examen mis à jour avec succès.' : 'Nouvel examen créé avec succès.' });
       setExamSaved(true);
-      loadData();
+      if (!isUpdate) {
+        setSelectedExamId(savedExam.id);
+      }
+      loadData(savedExam.id);
     } catch (err) {
-      setStatus({ type: 'success', message: 'Mode Démo : Examen enregistré. Activez-le depuis 📜 Historique & Rapports.' });
-      const demoExam = { id: Date.now(), title: examTitle.trim(), date: examDate, status: 'draft' };
-      if (exams.length > 0) {
-        setExams([{ ...exams[0], title: examTitle.trim(), date: examDate }]);
+      setStatus({ type: 'success', message: 'Mode Démo : Examen enregistré.' });
+      const demoId = selectedExamId || Date.now();
+      const demoExam = { id: demoId, title: examTitle.trim(), date: examDate, status: 'draft' };
+      if (selectedExamId) {
+        setExams(exams.map(e => e.id === selectedExamId ? demoExam : e));
       } else {
-        setExams([demoExam]);
+        setExams([demoExam, ...exams]);
+        setSelectedExamId(demoId);
       }
       setExamSaved(true);
     } finally {
@@ -163,7 +209,7 @@ const FormBuilder = () => {
 
     const payload = {
       id: stationId ? parseInt(stationId) : null,
-      exam_id: exams[0].id, // Default to first active exam
+      exam_id: selectedExamId,
       name: stationName,
       step_number: parseInt(stepNumber),
       is_reserve: isReserve,
@@ -173,11 +219,17 @@ const FormBuilder = () => {
 
     try {
       const res = await axios.post('/api/admin/stations', payload);
-      setStatus({ type: 'success', message: 'Station configurée avec succès.' });
-      loadData();
+      setStatus({ type: 'success', message: res.data.message || 'Station configurée avec succès.' });
+      loadData(selectedExamId);
       resetStationForm();
     } catch (err) {
-      // Demo mock save
+      // Show backend validation error (e.g. duplicate step_number + is_reserve)
+      if (err.response?.data?.message) {
+        setStatus({ type: 'error', message: err.response.data.message });
+        return;
+      }
+
+      // Demo mock save fallback (only when API is offline)
       const mockNewStation = {
         id: stationId ? parseInt(stationId) : Date.now(),
         name: stationName,
@@ -215,7 +267,7 @@ const FormBuilder = () => {
     try {
       await axios.delete(`/api/admin/stations/${id}`);
       setStatus({ type: 'success', message: 'Station supprimée.' });
-      loadData();
+      loadData(selectedExamId);
     } catch (err) {
       setStations(stations.filter(s => s.id !== id));
       setStatus({ type: 'success', message: 'Mode Démo : Station retirée.' });
@@ -235,6 +287,7 @@ const FormBuilder = () => {
   const handleSelectStationForForm = (stId) => {
     setSelectedStationId(stId);
     setStatus({ type: '', message: '' });
+    setIsFormDirty(false);
     
     const st = stations.find(s => s.id === parseInt(stId));
     if (!st) return;
@@ -273,6 +326,78 @@ const FormBuilder = () => {
     ]);
     setNewCritText('');
     setNewCritCritical(false);
+    setIsFormDirty(true);
+  };
+
+  // Download example CSV for criteria import
+  const handleDownloadCriteriaExample = () => {
+    const headers = "Description du geste;Critique\n";
+    const sample = "Lavage des mains et asepsie;oui\nIdentification correcte du patient;non\nRéalisation de la suture avec technique appropriée;oui\nExplication au patient des suites opératoires;non\nVérification de l'hémostase;ok\n";
+    const blob = new Blob([headers + sample], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'exemple_grille_criteres.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Import criteria from CSV file
+  const handleImportCriteriaCsv = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target.result;
+        const lines = text.split('\n');
+        if (lines.length < 2) {
+          setStatus({ type: 'error', message: 'Le fichier est vide.' });
+          return;
+        }
+
+        const importedCriteria = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          // Support both semicolon and comma separators
+          const separator = line.includes(';') ? ';' : ',';
+          const cols = line.split(separator).map(c => c.trim());
+
+          const description = cols[0] || '';
+          const critiqueRaw = (cols[1] || '').toLowerCase().trim();
+
+          if (description) {
+            const isCritical = ['oui', 'ok', 'yes', 'true', '1'].includes(critiqueRaw);
+            importedCriteria.push({
+              id: Date.now() + i,
+              text: description,
+              isCritical: isCritical
+            });
+          }
+        }
+
+        if (importedCriteria.length === 0) {
+          setStatus({ type: 'error', message: 'Aucun critère valide trouvé dans le fichier.' });
+          return;
+        }
+
+        setCriteria(prev => [...prev, ...importedCriteria]);
+        setIsFormDirty(true);
+        setStatus({
+          type: 'success',
+          message: `${importedCriteria.length} critère(s) importé(s) avec succès (${importedCriteria.filter(c => c.isCritical).length} critique(s)).`
+        });
+      } catch (error) {
+        setStatus({ type: 'error', message: 'Erreur lors de la lecture du fichier CSV.' });
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = null;
   };
 
   // Student QCM Options CRUD
@@ -286,6 +411,7 @@ const FormBuilder = () => {
     setNewOptText('');
     setNewOptPoints('');
     setNewOptCorrect(false);
+    setIsFormDirty(true);
   };
 
   // Submit Grid/QCM contents to server
@@ -324,7 +450,8 @@ const FormBuilder = () => {
     try {
       await axios.post('/api/admin/forms', payload);
       setStatus({ type: 'success', message: 'Configuration de l\'évaluation enregistrée avec succès.' });
-      loadData();
+      setIsFormDirty(false);
+      loadData(selectedExamId);
     } catch (err) {
       // Mock local update
       const st = stations.find(s => s.id === parseInt(selectedStationId));
@@ -334,6 +461,7 @@ const FormBuilder = () => {
         criteria: compiledCriteria
       };
       setStatus({ type: 'success', message: 'Mode Démo : Contenu sauvegardé pour la station.' });
+      setIsFormDirty(false);
     }
   };
 
@@ -350,7 +478,26 @@ const FormBuilder = () => {
 
       {/* Exam Metadata Card */}
       <div className="glass-card p-5 rounded-2xl flex flex-col gap-4">
-        <h3 className="text-sm font-extrabold t-text-heading">📅 Informations de l'Examen Actif</h3>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-2" style={{ borderColor: 'var(--color-border)' }}>
+          <h3 className="text-sm font-extrabold t-text-heading">📅 Informations de l'Examen</h3>
+          
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="text-[10px] t-text-secondary font-bold uppercase whitespace-nowrap">Session :</span>
+            <select
+              value={selectedExamId}
+              onChange={(e) => handleSelectExam(e.target.value)}
+              className="glass-input px-3 py-1.5 rounded-xl text-xs w-full sm:w-64"
+            >
+              <option value="new">+ Créer un nouvel examen</option>
+              {exams.map(ex => (
+                <option key={ex.id} value={ex.id}>
+                  {ex.title} ({ex.status === 'active' ? '🟢 Actif' : ex.status === 'completed' ? '📦 Archivé' : '⏸️ Brouillon'})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <form onSubmit={handleSaveExam} className="flex flex-col sm:flex-row gap-4 items-end">
           <div className="flex flex-1 flex-col gap-1.5 w-full">
             <label className="text-[10px] t-text-secondary font-semibold uppercase">Nom de l'Examen</label>
@@ -509,6 +656,11 @@ const FormBuilder = () => {
                         👤 {st.examiner.name}
                       </span>
                     )}
+                    {st.type === 'examiner_eval' && (!st.evaluation_form || !st.evaluation_form.criteria || st.evaluation_form.criteria.length === 0) && (
+                      <span className="inline-block text-[9px] font-bold text-rose-500 mt-1 animate-pulse">
+                        ⚠️ Grille vide (Aucun geste configuré)
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex gap-1.5">
@@ -552,6 +704,12 @@ const FormBuilder = () => {
             </div>
           ) : (
             <form onSubmit={handleSubmitFormContents} className="flex-1 flex flex-col gap-4">
+              {stations.find(s => s.id === parseInt(selectedStationId))?.type === 'examiner_eval' && criteria.length === 0 && (
+                <div className="p-3.5 rounded-xl border text-xs leading-relaxed animate-pulse"
+                  style={{ background: 'var(--color-warning-bg)', color: 'var(--color-warning)', borderColor: 'var(--color-warning)' }}>
+                  ⚠️ <b>Attention :</b> Aucun critère d'évaluation (Description du geste) n'a été configuré pour cette station clinique. Veuillez en ajouter ci-dessous ou importer un fichier CSV.
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] t-text-secondary font-bold uppercase">Titre du Questionnaire/Grille</label>
@@ -579,8 +737,30 @@ const FormBuilder = () => {
               {/* DYNAMIC FORM VIEW: EXAMINER RATING CHECKLIST */}
               {stations.find(s => s.id === parseInt(selectedStationId))?.type === 'examiner_eval' ? (
                 <div className="flex flex-col gap-4 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
-                  <h4 className="text-xs font-bold t-text-heading uppercase">Grille Tactile - Critères de notation</h4>
-                  <p className="text-[10px] t-text-secondary -mt-2">Chaque critère sera noté de <b className="t-accent">0</b> à <b className="t-accent">{totalPoints}</b> par l'examinateur.</p>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                      <h4 className="text-xs font-bold t-text-heading uppercase">Grille Tactile - Critères de notation</h4>
+                      <p className="text-[10px] t-text-secondary">Chaque critère sera noté de <b className="t-accent">0</b> à <b className="t-accent">{totalPoints}</b> par l'examinateur.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleDownloadCriteriaExample}
+                        className="px-3 py-1.5 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 border border-dashed border-gray-400 dark:border-gray-600 rounded-lg text-[10px] font-bold t-text-heading transition flex items-center gap-1"
+                      >
+                        📄 Exemple CSV
+                      </button>
+                      <label className="px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer">
+                        📤 Importer CSV
+                        <input
+                          type="file"
+                          accept=".csv,.txt"
+                          className="hidden"
+                          onChange={handleImportCriteriaCsv}
+                        />
+                      </label>
+                    </div>
+                  </div>
                   
                   <div className="flex flex-col sm:flex-row gap-2 p-3.5 rounded-xl items-end border" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
                     <div className="flex-1 flex flex-col gap-1">
@@ -617,7 +797,7 @@ const FormBuilder = () => {
                         </span>
                         <div className="flex items-center gap-3">
                           <span className="text-[10px] t-text-secondary">Noté sur {totalPoints}</span>
-                          <button type="button" onClick={() => setCriteria(criteria.filter(cr => cr.id !== c.id))} className="t-text-muted hover:text-rose-500">❌</button>
+                          <button type="button" onClick={() => { setCriteria(criteria.filter(cr => cr.id !== c.id)); setIsFormDirty(true); }} className="t-text-muted hover:text-rose-500">❌</button>
                         </div>
                       </div>
                     ))}
@@ -694,7 +874,7 @@ const FormBuilder = () => {
                         </span>
                         <div className="flex items-center gap-3">
                           <span className="font-extrabold t-accent">{opt.points} pts</span>
-                          <button type="button" onClick={() => setQcmOptions(qcmOptions.filter((_, oIdx) => oIdx !== idx))} className="t-text-muted hover:text-rose-400">❌</button>
+                          <button type="button" onClick={() => { setQcmOptions(qcmOptions.filter((_, oIdx) => oIdx !== idx)); setIsFormDirty(true); }} className="t-text-muted hover:text-rose-400">❌</button>
                         </div>
                       </div>
                     ))}
@@ -702,13 +882,15 @@ const FormBuilder = () => {
                 </div>
               )}
 
-              <button 
-                type="submit" 
-                className="w-full mt-4 py-3 text-white font-bold rounded-xl text-sm transition"
-                style={{ background: 'linear-gradient(135deg, var(--color-accent), #155E75)' }}
-              >
-                💾 Enregistrer la Grille et son Barème
-              </button>
+              {isFormDirty && (
+                <button 
+                  type="submit" 
+                  className="w-full mt-4 py-3 text-white font-bold rounded-xl text-sm transition"
+                  style={{ background: 'linear-gradient(135deg, var(--color-accent), #155E75)' }}
+                >
+                  💾 Enregistrer la Grille et son Barème
+                </button>
+              )}
 
               {status.message && (
                 <div className="p-3 rounded-lg text-xs font-semibold" style={{

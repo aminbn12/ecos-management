@@ -9,6 +9,7 @@ class StudentProfile extends Model
     protected $fillable = [
         'user_id',
         'matricule',
+        'level',
     ];
 
     public function user()

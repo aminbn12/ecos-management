@@ -43,6 +43,13 @@ class ExaminerController extends Controller
 
         $station = Station::with(['exam', 'evaluationForm'])->find($request->station_id);
 
+        if ($station && $station->exam && $station->exam->status === 'completed') {
+            return response()->json([
+                'error' => 'ExamCompleted',
+                'message' => "Cet examen est archivé. Aucune nouvelle évaluation ne peut être effectuée."
+            ], 400);
+        }
+
         // Fetch or create progression for this student
         $progression = ExamProgression::where('student_id', $student->id)
             ->where('exam_id', $station->exam_id)
@@ -89,12 +96,9 @@ class ExaminerController extends Controller
 
         // === STUDENT TABLET STATION: Mark as scanned for auto-launch ===
         if ($station->type === 'student_tablet') {
-            $progression->scanned_at = now();
-            $progression->save();
-
             return response()->json([
                 'type' => 'student_tablet',
-                'message' => "L'examen a été lancé automatiquement sur la tablette de l'étudiant.",
+                'message' => "L'étudiant a été scanné. En attente du démarrage de l'épreuve par l'examinateur.",
                 'student' => [
                     'id' => $student->id,
                     'name' => $student->user->name,
@@ -131,6 +135,40 @@ class ExaminerController extends Controller
     }
 
     /**
+     * Start the countdown timer for a scanned student (sets scanned_at = now()).
+     */
+    public function startTimer(Request $request)
+    {
+        $request->validate([
+            'matricule' => 'required|string',
+            'station_id' => 'required|exists:stations,id',
+        ]);
+
+        $student = StudentProfile::where('matricule', $request->matricule)->first();
+        if (!$student) {
+            return response()->json(['message' => 'Étudiant introuvable.'], 404);
+        }
+
+        $station = Station::find($request->station_id);
+
+        $progression = ExamProgression::where('student_id', $student->id)
+            ->where('exam_id', $station->exam_id)
+            ->first();
+
+        if (!$progression) {
+            return response()->json(['message' => 'Progression introuvable. Veuillez d\'abord scanner l\'étudiant.'], 400);
+        }
+
+        $progression->scanned_at = now();
+        $progression->save();
+
+        return response()->json([
+            'message' => 'Chronomètre démarré.',
+            'scanned_at' => $progression->scanned_at,
+        ]);
+    }
+
+    /**
      * Submit examiner evaluation for a student.
      * Triggers progression transitions.
      */
@@ -143,6 +181,7 @@ class ExaminerController extends Controller
             'passed' => 'required|boolean',
             'remarks' => 'nullable|string',
             'details' => 'nullable|array',
+            'duration' => 'nullable|integer',
         ]);
 
         $student = StudentProfile::where('matricule', $request->matricule)->first();
@@ -160,7 +199,8 @@ class ExaminerController extends Controller
                 $request->score,
                 auth()->user(),
                 $request->remarks,
-                $request->details
+                $request->details,
+                $request->duration
             );
 
             // Clear scanned_at after processing (for tablet stations)

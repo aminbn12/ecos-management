@@ -14,6 +14,7 @@ class EvaluationResult extends Model
         'passed',
         'remarks',
         'details',
+        'duration',
     ];
 
     protected $casts = [

@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const EvaluationView = ({ scanData, onBackToKiosk }) => {
   const { student, station, evaluation_form } = scanData;
   const criteriaList = evaluation_form?.criteria || [];
   
+  const storageScoresKey = `ecos_scores_${student.matricule}_${station.id}`;
+  const storageRemarksKey = `ecos_remarks_${student.matricule}_${station.id}`;
+
   const [scores, setScores] = useState(() => {
+    const savedScores = localStorage.getItem(storageScoresKey);
+    if (savedScores) {
+      try {
+        return JSON.parse(savedScores);
+      } catch (e) {
+        console.error("Failed to parse saved scores", e);
+      }
+    }
     const initial = {};
     criteriaList.forEach((_, idx) => {
       initial[idx] = 0;
@@ -13,16 +24,103 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
     return initial;
   });
 
-  const [remarks, setRemarks] = useState('');
+  const [remarks, setRemarks] = useState(() => {
+    return localStorage.getItem(storageRemarksKey) || '';
+  });
+
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
 
+  useEffect(() => {
+    localStorage.setItem(storageScoresKey, JSON.stringify(scores));
+  }, [scores, storageScoresKey]);
+
+  useEffect(() => {
+    localStorage.setItem(storageRemarksKey, remarks);
+  }, [remarks, storageRemarksKey]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (submitStatus) return;
+      const message = "Une évaluation est en cours. Si vous actualisez la page, vos saisies temporaires risquent d'être perdues.";
+      e.returnValue = message;
+      return message;
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [submitStatus]);
+
+  const handleCancel = () => {
+    const hasScores = Object.values(scores).some(v => v > 0) || remarks.trim().length > 0;
+    if (timerStarted || hasScores) {
+      if (!window.confirm("Êtes-vous sûr de vouloir annuler cette évaluation ? Tous les scores saisis seront perdus.")) {
+        return;
+      }
+    }
+    localStorage.removeItem(storageScoresKey);
+    localStorage.removeItem(storageRemarksKey);
+    localStorage.removeItem('ecos_active_scan');
+    onBackToKiosk();
+  };
+
+  // Track if examiner has started the test
+  const [timerStarted, setTimerStarted] = useState(() => {
+    return !!scanData?.progression?.scanned_at;
+  });
+  const [startingTimer, setStartingTimer] = useState(false);
+
+  // 5-minute countdown timer (300 seconds) - sync with scanned_at if already started
+  const [timeLeft, setTimeLeft] = useState(() => {
+    if (scanData?.progression?.scanned_at) {
+      const scannedTime = new Date(scanData.progression.scanned_at).getTime();
+      const nowTime = new Date().getTime();
+      const elapsed = Math.floor((nowTime - scannedTime) / 1000);
+      const remaining = 300 - elapsed;
+      return remaining > 0 ? remaining : 0;
+    }
+    return 300;
+  });
+
+  useEffect(() => {
+    if (!timerStarted || timeLeft <= 0 || submitting || submitStatus) return;
+    const timer = setInterval(() => {
+      setTimeLeft(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timerStarted, timeLeft, submitting, submitStatus]);
+
+  const handleStartTimer = async () => {
+    setStartingTimer(true);
+    try {
+      await axios.post('/api/examiner/start-timer', {
+        matricule: student.matricule,
+        station_id: station.id
+      });
+      setTimerStarted(true);
+    } catch (err) {
+      console.warn("Backend start-timer offline, starting local timer mock.");
+      setTimerStarted(true);
+    } finally {
+      setStartingTimer(false);
+    }
+  };
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
   const maxPossiblePoints = evaluation_form?.total_points || 20;
-  const currentTotalScore = Object.values(scores).reduce((sum, val) => sum + val, 0);
+  const averageScore = criteriaList.length > 0 
+    ? (Object.values(scores).reduce((sum, val) => sum + val, 0) / criteriaList.length) 
+    : 0;
+  const currentTotalScore = Math.round(averageScore * 100) / 100;
   
   const autoPassed = currentTotalScore >= (maxPossiblePoints / 2);
-  const [manualOverridePassed, setManualOverridePassed] = useState(null);
-  const isPassed = manualOverridePassed !== null ? manualOverridePassed : autoPassed;
+  const isPassed = autoPassed;
 
   const failedCriticalStep = criteriaList.some((c, idx) => c.isCritical && scores[idx] === 0);
 
@@ -33,10 +131,6 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
     }));
   };
 
-  const handleManualPassChange = (val) => {
-    setManualOverridePassed(val);
-  };
-
   const handleSubmit = async () => {
     setSubmitting(true);
     const payload = {
@@ -45,15 +139,19 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
       score: currentTotalScore,
       passed: isPassed,
       remarks: remarks,
+      duration: 300 - timeLeft,
       details: criteriaList.map((crit, idx) => ({
         criterion: crit.text,
-        points_max: crit.points,
+        points_max: maxPossiblePoints,
         points_awarded: scores[idx] !== undefined ? scores[idx] : 0
       }))
     };
 
     try {
       const response = await axios.post('/api/examiner/submit', payload);
+      localStorage.removeItem(storageScoresKey);
+      localStorage.removeItem(storageRemarksKey);
+      localStorage.removeItem('ecos_active_scan');
       setSubmitStatus({
         type: 'success',
         message: response.data.message || 'Évaluation enregistrée.',
@@ -66,6 +164,10 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
         setSubmitting(false);
         const nextStep = station.is_reserve ? station.step_number + 1 : station.step_number;
         const nextIsReserve = !station.is_reserve && !isPassed;
+
+        localStorage.removeItem(storageScoresKey);
+        localStorage.removeItem(storageRemarksKey);
+        localStorage.removeItem('ecos_active_scan');
 
         setSubmitStatus({
           type: 'success',
@@ -127,13 +229,65 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto flex flex-col gap-5 animate-fade-in" style={{ minHeight: 'calc(100vh - 60px)' }}>
+    <div className="p-4 md:p-6 max-w-3xl mx-auto flex flex-col gap-5 animate-fade-in relative" style={{ minHeight: 'calc(100vh - 60px)' }}>
+      {/* Start Timer Overlay Modal */}
+      {!timerStarted && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="glass-card p-8 rounded-3xl max-w-md w-full flex flex-col items-center gap-6 animate-scale-up text-center border" style={{ borderColor: 'var(--color-accent)' }}>
+            <div className="w-20 h-20 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30">
+              <span className="text-4xl text-cyan-400">⏱️</span>
+            </div>
+            
+            <div>
+              <h2 className="text-xl font-extrabold t-text-heading">Prêt pour l'épreuve ?</h2>
+              <p className="text-xs t-text-secondary mt-1.5 leading-relaxed">
+                L'étudiant <strong>{student.name}</strong> a été identifié. Assurez-vous qu'il est bien installé et prêt avant de démarrer le chronomètre.
+              </p>
+            </div>
+            
+            <div className="w-full bg-black/20 p-4 rounded-2xl text-left flex flex-col gap-1 text-xs">
+              <span className="text-[10px] t-text-muted uppercase font-bold">Candidat</span>
+              <span className="font-semibold t-text-heading">{student.name} ({student.matricule})</span>
+              
+              <span className="text-[10px] t-text-muted uppercase font-bold mt-2">Station d'examen</span>
+              <span className="font-bold t-accent">{station.name} (Étape {station.step_number})</span>
+            </div>
+
+            <div className="flex gap-3 w-full">
+              <button 
+                onClick={handleCancel}
+                className="flex-1 py-3 border rounded-xl text-xs font-bold t-text-secondary hover:bg-white/5 transition"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleStartTimer}
+                disabled={startingTimer}
+                className="flex-1 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-xl text-xs shadow-lg transition"
+              >
+                {startingTimer ? 'Démarrage...' : '▶ Démarrer l\'Épreuve'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <header className="glass-card p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <span className="text-xs font-bold uppercase tracking-widest t-accent">Candidat Actif</span>
           <h1 className="text-xl font-extrabold t-text-heading mt-0.5">{student.name}</h1>
           <p className="text-xs t-text-secondary font-mono mt-0.5">Matricule: {student.matricule}</p>
         </div>
+
+        {!submitStatus && (
+          <div className={`px-4 py-2 rounded-xl border font-mono font-black text-lg ${
+            timeLeft < 60 
+              ? 'bg-rose-500/10 text-rose-500 border-rose-500/30 animate-pulse' 
+              : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30'
+          }`}>
+            ⏱️ {formatTime(timeLeft)}
+          </div>
+        )}
 
         <div className="text-left sm:text-right">
           <span className="text-xs t-text-secondary font-bold uppercase">Station Assignée</span>
@@ -228,48 +382,13 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
           <div className="flex flex-col">
             <span className="text-xs t-text-muted font-bold uppercase">Résultat Provisoire</span>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`text-lg font-black ${isPassed ? '' : ''}`} style={{ color: isPassed ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                {isPassed ? 'Admis' : 'Ajourné'}
+              <span className={`text-lg font-black`} style={{ color: isPassed ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                {isPassed ? 'Admis d\'office' : 'Ajourné d\'office'}
               </span>
               <span className="text-xs t-text-secondary">
-                (Seuil à 50%: {currentTotalScore} / {maxPossiblePoints} pts)
+                (Seuil à 50% : {currentTotalScore} / {maxPossiblePoints} pts)
               </span>
             </div>
-          </div>
-
-          <div className="flex gap-2 w-full sm:w-auto">
-            <button 
-              onClick={() => handleManualPassChange(true)}
-              className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs font-bold border transition duration-150"
-              style={{
-                background: isPassed === true && manualOverridePassed !== null ? 'var(--color-success-bg)' : 'transparent',
-                color: isPassed === true && manualOverridePassed !== null ? 'var(--color-success)' : 'var(--color-text-secondary)',
-                borderColor: isPassed === true && manualOverridePassed !== null ? 'var(--color-success)' : 'var(--color-border)'
-              }}
-            >
-              Force Admis
-            </button>
-            <button 
-              onClick={() => handleManualPassChange(false)}
-              className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs font-bold border transition duration-150"
-              style={{
-                background: isPassed === false && manualOverridePassed !== null ? 'var(--color-danger-bg)' : 'transparent',
-                color: isPassed === false && manualOverridePassed !== null ? 'var(--color-danger)' : 'var(--color-text-secondary)',
-                borderColor: isPassed === false && manualOverridePassed !== null ? 'var(--color-danger)' : 'var(--color-border)'
-              }}
-            >
-              Force Ajourné
-            </button>
-            {manualOverridePassed !== null && (
-              <button 
-                onClick={() => setManualOverridePassed(null)}
-                className="px-3 py-2.5 rounded-xl text-xs t-text-secondary"
-                style={{ background: 'transparent', border: '1px solid var(--color-border)' }}
-                title="Reset to Auto"
-              >
-                🔄
-              </button>
-            )}
           </div>
         </div>
 
@@ -287,7 +406,7 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
 
       <footer className="flex gap-3 mt-2">
         <button 
-          onClick={onBackToKiosk}
+          onClick={handleCancel}
           className="flex-1 py-3.5 rounded-xl text-sm font-bold transition duration-150 t-text-secondary"
           style={{ background: 'transparent', border: '1px solid var(--color-border)' }}
         >

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const ExamHistory = () => {
+  const navigate = useNavigate();
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState({ type: '', message: '' });
+  const [allowDeletion, setAllowDeletion] = useState(false);
 
   // View Exam Details State
   const [selectedExam, setSelectedExam] = useState(null);
@@ -23,12 +26,21 @@ const ExamHistory = () => {
     try {
       const res = await axios.get('/api/admin/exams');
       setExams(res.data.exams || []);
+
+      // Load settings
+      try {
+        const settingsRes = await axios.get('/api/admin/settings');
+        setAllowDeletion(settingsRes.data.settings?.allow_exam_deletion === '1');
+      } catch (settingsErr) {
+        console.warn("API settings offline, using default (false) for deletion.");
+      }
     } catch (err) {
       console.warn("API offline, loading mock exams history");
       setExams([
         { id: 1, title: "Examen Clinique ECOS FMD UM6SS 2026", date: "2026-06-30", status: "active", progressions_count: 5, average_score: 14.5 },
         { id: 2, title: "Examen ECOS Prothèse & Endodontie 2025", date: "2025-06-15", status: "completed", progressions_count: 42, average_score: 13.8 },
       ]);
+      setAllowDeletion(true); // Default to true in offline mode for testing
     } finally {
       setLoading(false);
     }
@@ -153,9 +165,92 @@ const ExamHistory = () => {
     }
   };
 
-  const handleDownloadExcel = (examId) => {
-    const url = `/api/admin/exams/${examId}/export`;
-    window.open(url, '_blank');
+  const handleTerminateExam = async (examId) => {
+    const code = window.prompt("Veuillez saisir le code d'administration pour clôturer et archiver cet examen :");
+    if (code === null) return;
+    if (!code.trim()) {
+      alert("Le code est obligatoire pour procéder à la clôture.");
+      return;
+    }
+
+    try {
+      const res = await axios.post(`/api/admin/exams/${examId}/terminate`, { code });
+      setStatus({ type: 'success', message: res.data.message || 'Examen archivé avec succès.' });
+      loadExams();
+      if (selectedExam && selectedExam.id === examId) {
+        setSelectedExam({ ...selectedExam, status: 'completed' });
+      }
+    } catch (err) {
+      if (err.response && err.response.data && err.response.data.message) {
+        alert(err.response.data.message);
+      } else {
+        // Fallback for offline demo mode
+        if (code === '2026') {
+          setExams(exams.map(e => e.id === examId ? { ...e, status: 'completed' } : e));
+          setStatus({ type: 'success', message: "Mode Démo : Examen clôturé avec succès." });
+          if (selectedExam && selectedExam.id === examId) {
+            setSelectedExam({ ...selectedExam, status: 'completed' });
+          }
+        } else {
+          alert("Code incorrect. (Indice Mode Démo : 2026)");
+        }
+      }
+    }
+  };
+
+  const handleDeleteExam = async (examId) => {
+    const code = window.prompt("⚠️ ATTENTION : La suppression d'un examen supprimera TOUTES les progressions, stations, et notes de tous les candidats liés à cet examen. Cette action est irréversible !\n\nVeuillez saisir le code secret d'administration pour confirmer :");
+    if (code === null) return;
+    if (!code.trim()) {
+      alert("Le code secret est obligatoire pour supprimer l'examen.");
+      return;
+    }
+
+    try {
+      const res = await axios.post(`/api/admin/exams/${examId}/delete`, { code });
+      setStatus({ type: 'success', message: res.data.message || 'Examen supprimé avec succès.' });
+      if (selectedExam && selectedExam.id === examId) {
+        setSelectedExam(null);
+      }
+      loadExams();
+    } catch (err) {
+      if (err.response && err.response.data && err.response.data.message) {
+        alert(err.response.data.message);
+      } else {
+        // Fallback for offline demo mode
+        if (code === '2026') {
+          setExams(exams.filter(e => e.id !== examId));
+          setStatus({ type: 'success', message: "Mode Démo : Examen supprimé avec succès." });
+          if (selectedExam && selectedExam.id === examId) {
+            setSelectedExam(null);
+          }
+        } else {
+          alert("Code incorrect. (Indice Mode Démo : 2026)");
+        }
+      }
+    }
+  };
+
+  const handleDownloadExcel = async (examId) => {
+    try {
+      const response = await axios.get(`/api/admin/exams/${examId}/export`, {
+        responseType: 'blob'
+      });
+      const blob = new Blob([response.data], { type: 'application/vnd.ms-excel; charset=UTF-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const exam = exams.find(e => e.id === examId);
+      const titleCleaned = exam ? exam.title.toLowerCase().replace(/\s+/g, '_') : examId;
+      link.setAttribute('download', `ecos_results_${titleCleaned}.xls`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error downloading excel:", err);
+      alert("Erreur lors de l'extraction du fichier Excel.");
+    }
   };
 
   return (
@@ -234,9 +329,15 @@ const ExamHistory = () => {
                       <div className="flex gap-2 mt-2 pt-2 border-t flex-wrap" style={{ borderColor: 'var(--color-border)' }} onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => handleSelectExam(exam)}
-                          className="flex-1 py-1.5 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 rounded-lg text-[10px] font-bold t-text-heading transition"
+                          className="py-1.5 px-2 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 rounded-lg text-[10px] font-bold t-text-heading transition"
                         >
                           👁️ Voir
+                        </button>
+                        <button
+                          onClick={() => navigate('/admin/form-builder', { state: { examId: exam.id } })}
+                          className="py-1.5 px-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg text-[10px] font-bold transition"
+                        >
+                          ✏️ Modifier
                         </button>
                         <button
                           onClick={() => handleDownloadExcel(exam.id)}
@@ -265,21 +366,39 @@ const ExamHistory = () => {
                               ⏸️ Pause
                             </button>
                             <button
-                              onClick={() => handleChangeExamStatus(exam.id, 'completed')}
+                              onClick={() => handleTerminateExam(exam.id)}
                               className="py-1.5 px-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 rounded-lg text-[10px] font-bold transition"
-                              title="Archiver l'examen"
+                              title="Clôturer et archiver l'examen"
                             >
-                              📦 Archiver
+                              🛑 Terminer
                             </button>
                           </>
                         )}
                         {exam.status === 'completed' && (
+                          <>
+                            <button
+                              onClick={() => navigate(`/admin/dashboard?exam_id=${exam.id}`)}
+                              className="py-1.5 px-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 rounded-lg text-[10px] font-bold transition"
+                              title="Visualiser le dashboard"
+                            >
+                              📊 Visualiser
+                            </button>
+                            <button
+                              onClick={() => handleChangeExamStatus(exam.id, 'active')}
+                              className="py-1.5 px-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 rounded-lg text-[10px] font-bold transition"
+                              title="Réactiver cet examen"
+                            >
+                              🔄 Réactiver
+                            </button>
+                          </>
+                        )}
+                        {allowDeletion && (
                           <button
-                            onClick={() => handleChangeExamStatus(exam.id, 'active')}
-                            className="py-1.5 px-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 rounded-lg text-[10px] font-bold transition"
-                            title="Réactiver cet examen"
+                            onClick={() => handleDeleteExam(exam.id)}
+                            className="py-1.5 px-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-lg text-[10px] font-bold transition"
+                            title="Supprimer définitivement l'examen"
                           >
-                            🔄 Réactiver
+                            🗑️ Supprimer
                           </button>
                         )}
                       </div>

@@ -17,6 +17,7 @@ return new class extends Migration
             $table->boolean('passed');
             $table->text('remarks')->nullable();
             $table->json('details')->nullable();
+            $table->integer('duration')->default(0); // Temps passé en secondes
             $table->timestamps();
         });
     }

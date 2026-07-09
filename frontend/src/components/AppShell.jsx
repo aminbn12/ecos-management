@@ -6,13 +6,26 @@ import LogoImage from '../assets/logo.png';
 
 const roleConfig = {
   super_admin: {
-    label: 'Administrateur',
+    label: 'Super Admin',
     links: [
       { to: '/admin/dashboard', label: 'Live Supervision', icon: '📈' },
-      { to: '/admin/form-builder', label: 'Grilles Évaluation', icon: '⚙️' },
+      { to: '/admin/form-builder', label: 'Grilles Évaluation', icon: '📋' },
       { to: '/admin/students', label: 'Étudiants', icon: '🎓' },
       { to: '/admin/examiners', label: 'Examinateurs', icon: '👥' },
       { to: '/admin/history', label: 'Historique & Rapports', icon: '📜' },
+      { to: '/admin/administrators', label: 'Administrateurs', icon: '🔑' },
+      { to: '/admin/settings', label: 'Paramètres', icon: '⚙️' },
+    ],
+  },
+  admin: {
+    label: 'Administrateur',
+    links: [
+      { to: '/admin/dashboard', label: 'Live Supervision', icon: '📈' },
+      { to: '/admin/form-builder', label: 'Grilles Évaluation', icon: '📋' },
+      { to: '/admin/students', label: 'Étudiants', icon: '🎓' },
+      { to: '/admin/examiners', label: 'Examinateurs', icon: '👥' },
+      { to: '/admin/history', label: 'Historique & Rapports', icon: '📜' },
+      { to: '/admin/settings', label: 'Paramètres', icon: '⚙️' },
     ],
   },
   admin_examiner: {
@@ -111,8 +124,8 @@ const AppShell = ({ children }) => {
             <div className="hidden sm:flex flex-col text-left">
               <span className="text-xs font-bold t-text-heading leading-tight truncate max-w-[120px]">{user?.name || 'Utilisateur'}</span>
               <span className="text-[9px] font-bold mt-0.5 px-1.5 py-0.5 rounded-full text-center" style={{
-                background: user?.role === 'super_admin' ? 'rgba(20, 184, 166, 0.15)' : user?.role === 'admin_examiner' ? 'rgba(6, 182, 212, 0.15)' : 'rgba(99, 102, 241, 0.15)',
-                color: user?.role === 'super_admin' ? '#0D9488' : user?.role === 'admin_examiner' ? '#0891B2' : '#6366F1',
+                background: user?.role === 'super_admin' || user?.role === 'admin' ? 'rgba(20, 184, 166, 0.15)' : user?.role === 'admin_examiner' ? 'rgba(6, 182, 212, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                color: user?.role === 'super_admin' || user?.role === 'admin' ? '#0D9488' : user?.role === 'admin_examiner' ? '#0891B2' : '#6366F1',
               }}>
                 {config.label}
               </span>

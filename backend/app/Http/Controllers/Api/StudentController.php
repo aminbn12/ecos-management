@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\StudentProfile;
 use App\Models\ExamProgression;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 
 class StudentController extends Controller
@@ -30,6 +31,14 @@ class StudentController extends Controller
             ->where('student_id', $studentProfile->id)
             ->first();
 
+        $showAverage = Setting::getValue('show_student_average', '0') === '1';
+
+        $averageScore = null;
+        if ($showAverage && $progression && count($progression->results) > 0) {
+            $total = $progression->results->sum('score');
+            $averageScore = round($total / count($progression->results), 2);
+        }
+
         return response()->json([
             'user' => [
                 'id' => $user->id,
@@ -37,7 +46,9 @@ class StudentController extends Controller
                 'email' => $user->email,
             ],
             'student_profile' => $studentProfile,
-            'progression' => $progression
+            'progression' => $progression,
+            'show_average' => $showAverage,
+            'average_score' => $averageScore,
         ]);
     }
 

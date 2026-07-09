@@ -13,6 +13,8 @@ import EvaluationView from './components/EvaluationView';
 import StudentProfile from './components/StudentProfile';
 import TabletTaskView from './components/TabletTaskView';
 import ExamHistory from './components/ExamHistory';
+import AdminManager from './components/AdminManager';
+import SettingsManager from './components/SettingsManager';
 import LogoImage from './assets/logo.png';
 
 // 1. Home Router Redirector
@@ -23,6 +25,7 @@ const HomeRedirect = () => {
 
   switch (user.role) {
     case 'super_admin':
+    case 'admin':
       return <Navigate to="/admin/dashboard" replace />;
     case 'admin_examiner':
       return <Navigate to="/examiner/kiosk" replace />;
@@ -139,31 +142,7 @@ const LoginView = () => {
           </button>
         </form>
 
-        {/* Quick simulator triggers */}
-        <div className="pt-5 flex flex-col gap-3" style={{ borderTop: '1px solid var(--color-border)' }}>
-          <h4 className="text-xs t-text-muted text-center font-bold uppercase tracking-wider">Accès Rapide (Démo)</h4>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => handleQuickLogin('admin@um6ss.ma')}
-              className="glass-card px-2 py-2.5 text-[10px] font-bold rounded-xl transition duration-150 hover:border-teal-500/30"
-              style={{ color: 'var(--color-accent)' }}
-            >
-              👑 Admin
-            </button>
-            <button
-              onClick={() => handleQuickLogin('examiner@um6ss.ma')}
-              className="glass-card px-2 py-2.5 text-[10px] font-bold rounded-xl transition duration-150 hover:border-cyan-500/30 text-cyan-500"
-            >
-              📋 Examinateur
-            </button>
-            <button
-              onClick={() => handleQuickLogin('yassine.filali@student.um6ss.ma')}
-              className="glass-card px-2 py-2.5 text-[10px] font-bold rounded-xl transition duration-150 hover:border-indigo-500/30 text-indigo-500"
-            >
-              🎓 Étudiant
-            </button>
-          </div>
-        </div>
+
       </div>
     </div>
   );
@@ -187,7 +166,45 @@ const UnauthorizedView = () => (
 
 // 4. Examiner Station Routing Wrapper
 const ExaminerStationFlow = () => {
-  const [activeScan, setActiveScan] = useState(null);
+  const [activeScan, setActiveScan] = useState(() => {
+    const saved = localStorage.getItem('ecos_active_scan');
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.error("Error parsing saved active scan", e);
+      return null;
+    }
+  });
+  const [qcmStarted, setQcmStarted] = useState(false);
+  const [startingQcm, setStartingQcm] = useState(false);
+
+  // Reset local states and sync activeScan to localStorage when it changes
+  React.useEffect(() => {
+    setQcmStarted(false);
+    setStartingQcm(false);
+    if (activeScan) {
+      localStorage.setItem('ecos_active_scan', JSON.stringify(activeScan));
+    } else {
+      localStorage.removeItem('ecos_active_scan');
+    }
+  }, [activeScan]);
+
+
+  const handleStartQcm = async () => {
+    setStartingQcm(true);
+    try {
+      await axios.post('/api/examiner/start-timer', {
+        matricule: activeScan.student.matricule,
+        station_id: activeScan.station.id
+      });
+      setQcmStarted(true);
+    } catch (err) {
+      console.warn("Backend start-timer offline, launching QCM locally.");
+      setQcmStarted(true);
+    } finally {
+      setStartingQcm(false);
+    }
+  };
 
   if (activeScan) {
     if (activeScan.type === 'student_tablet') {
@@ -198,9 +215,13 @@ const ExaminerStationFlow = () => {
               <span className="text-3xl text-cyan-400">💻</span>
             </div>
             
-            <h2 className="text-xl font-bold text-cyan-400">Lancement Activé</h2>
+            <h2 className="text-xl font-bold text-cyan-400">
+              {qcmStarted ? 'Lancement Activé' : 'Prêt pour le Lancement'}
+            </h2>
             <p className="text-xs text-gray-400">
-              L'examen a été lancé automatiquement sur la tablette de l'étudiant.
+              {qcmStarted 
+                ? "L'examen a été démarré et le chronomètre est actif sur l'écran du candidat." 
+                : "L'étudiant a été identifié. Cliquez ci-dessous pour démarrer l'épreuve QCM."}
             </p>
             
             <div className="w-full bg-gray-900/60 p-4 rounded-2xl border border-gray-800 text-left flex flex-col gap-1">
@@ -211,12 +232,30 @@ const ExaminerStationFlow = () => {
               <span className="text-sm font-bold text-gray-200">{activeScan.station?.name}</span>
             </div>
 
-            <button 
-              onClick={() => setActiveScan(null)}
-              className="w-full mt-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-xl text-sm transition duration-150"
-            >
-              Retour au Kiosque
-            </button>
+            {qcmStarted ? (
+              <button 
+                onClick={() => setActiveScan(null)}
+                className="w-full mt-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-xl text-sm transition duration-150"
+              >
+                Retour au Kiosque
+              </button>
+            ) : (
+              <div className="flex gap-3 w-full mt-4">
+                <button 
+                  onClick={() => setActiveScan(null)}
+                  className="flex-1 py-3 border border-gray-700 rounded-xl text-xs font-bold text-gray-400 hover:bg-white/5 transition"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={handleStartQcm}
+                  disabled={startingQcm}
+                  className="flex-1 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-xl text-xs shadow-lg transition"
+                >
+                  {startingQcm ? 'Lancement...' : '▶ Démarrer le QCM'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       );
@@ -252,7 +291,7 @@ export default function App() {
             <Route
               path="/admin/dashboard"
               element={
-                <ProtectedRoute allowedRoles={['super_admin']}>
+                <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
                   <AppShell>
                     <LiveDashboard />
                   </AppShell>
@@ -262,7 +301,7 @@ export default function App() {
             <Route
               path="/admin/form-builder"
               element={
-                <ProtectedRoute allowedRoles={['super_admin']}>
+                <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
                   <AppShell>
                     <FormBuilder />
                   </AppShell>
@@ -272,7 +311,7 @@ export default function App() {
             <Route
               path="/admin/examiners"
               element={
-                <ProtectedRoute allowedRoles={['super_admin']}>
+                <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
                   <AppShell>
                     <ExaminerManager />
                   </AppShell>
@@ -282,7 +321,7 @@ export default function App() {
             <Route
               path="/admin/students"
               element={
-                <ProtectedRoute allowedRoles={['super_admin']}>
+                <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
                   <AppShell>
                     <StudentManager />
                   </AppShell>
@@ -292,9 +331,29 @@ export default function App() {
             <Route
               path="/admin/history"
               element={
-                <ProtectedRoute allowedRoles={['super_admin']}>
+                <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
                   <AppShell>
                     <ExamHistory />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/administrators"
+              element={
+                <ProtectedRoute allowedRoles={['super_admin']}>
+                  <AppShell>
+                    <AdminManager />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
+                  <AppShell>
+                    <SettingsManager />
                   </AppShell>
                 </ProtectedRoute>
               }

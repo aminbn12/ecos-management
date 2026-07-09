@@ -3,8 +3,16 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
-// Configure Axios defaults
-axios.defaults.baseURL = import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000';
+// Configure Axios defaults — dynamically compute subfolder path if hosted in XAMPP subdirectory
+const getBaseURL = () => {
+  const path = window.location.pathname;
+  const publicIndex = path.indexOf('/public');
+  if (publicIndex !== -1) {
+    return path.substring(0, publicIndex + 7); // returns "/ecos-app/public"
+  }
+  return '';
+};
+axios.defaults.baseURL = getBaseURL();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -26,6 +34,28 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
     }
     setIsLoading(false);
+
+    // Intercept 401 Unauthorized API responses to log out invalid/expired sessions
+    const interceptor = axios.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.response && error.response.status === 401) {
+          localStorage.removeItem('ecos_token');
+          localStorage.removeItem('ecos_user');
+          delete axios.defaults.headers.common['Authorization'];
+          setUser(null);
+          setToken(null);
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
   }, []);
 
   const login = async (email, password) => {
@@ -43,48 +73,11 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(false);
       return { success: true };
     } catch (error) {
-      console.warn("Backend login failed, attempting local fallback/mock validation...", error);
-
-      // 2. Demo mode fallback: if backend is not running, allow mock login for presentation
-      const mockUsers = [
-        {
-          id: 1,
-          name: "Dr. Amine Bensaid",
-          email: "admin@um6ss.ma",
-          role: "super_admin"
-        },
-        {
-          id: 2,
-          name: "Dr. Sofia Alami",
-          email: "examiner@um6ss.ma",
-          role: "admin_examiner"
-        },
-        {
-          id: 3,
-          name: "Yassine Filali",
-          email: "yassine.filali@student.um6ss.ma",
-          role: "student",
-          student_profile: { id: 101, user_id: 3, matricule: "DENT-2026-042" }
-        }
-      ];
-
-      const foundMock = mockUsers.find(u => u.email === email && password === "password");
-
-      if (foundMock) {
-        const mockToken = "mock_token_" + foundMock.role + "_" + Date.now();
-        localStorage.setItem('ecos_token', mockToken);
-        localStorage.setItem('ecos_user', JSON.stringify(foundMock));
-        setToken(mockToken);
-        setUser(foundMock);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${mockToken}`;
-        setIsLoading(false);
-        return { success: true };
-      }
-
+      console.error("Backend login failed:", error);
       setIsLoading(false);
       return { 
         success: false, 
-        message: error.response?.data?.message || "Identifiants invalides (ou tapez 'password' pour le mode démo)." 
+        message: error.response?.data?.message || "Erreur de connexion au serveur (assurez-vous que XAMPP est lancé)." 
       };
     }
   };

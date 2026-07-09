@@ -37,9 +37,10 @@ class ExamProgressionService
         float $score = 0.0,
         ?User $examiner = null,
         ?string $remarks = null,
-        ?array $details = null
+        ?array $details = null,
+        ?int $duration = 0
     ): ExamProgression {
-        return DB::transaction(function () use ($student, $station, $passed, $score, $examiner, $remarks, $details) {
+        return DB::transaction(function () use ($student, $station, $passed, $score, $examiner, $remarks, $details, $duration) {
             // 1. Retrieve the student's active progression for this exam
             $progression = ExamProgression::where('student_id', $student->id)
                 ->where('exam_id', $station->exam_id)
@@ -70,6 +71,7 @@ class ExamProgressionService
                 'passed' => $passed,
                 'remarks' => $remarks,
                 'details' => $details,
+                'duration' => $duration ?: 0,
             ]);
 
             // 3. Compute next step state

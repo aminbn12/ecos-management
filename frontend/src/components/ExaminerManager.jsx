@@ -18,11 +18,7 @@ const ExaminerManager = () => {
   const [specialty, setSpecialty] = useState('');
 
   // Mock examiners for demo
-  const mockExaminers = [
-    { id: 2, name: "Dr. El Alami", email: "alami@um6ss.ma", title: "Pr", gender: "male", age: 45, specialty: "Parodontologie" },
-    { id: 3, name: "Dr. Bennani", email: "bennani@um6ss.ma", title: "Dr", gender: "male", age: 38, specialty: "Endodontie" },
-    { id: 4, name: "Dr. Tazi", email: "tazi@um6ss.ma", title: "Pr", gender: "female", age: 52, specialty: "Chirurgie Buccale" },
-  ];
+  const mockExaminers = [];
 
   const loadExaminers = async () => {
     try {
@@ -117,6 +113,7 @@ const ExaminerManager = () => {
       case 'Pr': return 'Professeur';
       case 'Dr': return 'Docteur';
       case 'Mme': return 'Madame';
+      case 'Mr': return 'Monsieur';
       default: return t;
     }
   };
@@ -154,6 +151,7 @@ const ExaminerManager = () => {
                     <option value="Pr">Professeur (Pr)</option>
                     <option value="Dr">Docteur (Dr)</option>
                     <option value="Mme">Madame (Mme)</option>
+                    <option value="Mr">Monsieur (Mr)</option>
                   </select>
                 </div>
 
