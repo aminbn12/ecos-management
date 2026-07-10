@@ -253,7 +253,7 @@ const ScannerKiosk = ({ onScanSuccess }) => {
         // Return a mock successful scan based on selected station type & config
         const mockStudent = {
           id: 42,
-          name: matricule.toUpperCase() === 'DENT-2026-042' ? "Yassine Filali" : "Étudiant Externe (Simulé)",
+          name: (matricule.toUpperCase() === 'DENT-2026-042' || matricule.toUpperCase() === '002699' || matricule.toUpperCase() === 'OD0099') ? "Yassine Filali" : "Étudiant Externe (Simulé)",
           matricule: matricule.toUpperCase()
         };
 
@@ -384,7 +384,7 @@ const ScannerKiosk = ({ onScanSuccess }) => {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Matricule (ex: DENT-2026-042)"
+                placeholder="Matricule (ex: 002699 - OD0099)"
                 value={manualInput}
                 onChange={(e) => setManualInput(e.target.value)}
                 className="flex-1 glass-input px-4 py-2.5 rounded-xl text-sm"

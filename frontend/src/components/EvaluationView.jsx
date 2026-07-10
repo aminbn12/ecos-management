@@ -7,6 +7,9 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
   
   const storageScoresKey = `ecos_scores_${student.matricule}_${station.id}`;
   const storageRemarksKey = `ecos_remarks_${student.matricule}_${station.id}`;
+  const storageTimerStartedKey = `ecos_timer_started_${student.matricule}_${station.id}`;
+  const storageTimeLeftKey = `ecos_time_left_${student.matricule}_${station.id}`;
+  const storageLastGradedKey = `ecos_last_graded_${student.matricule}_${station.id}`;
 
   const [scores, setScores] = useState(() => {
     const savedScores = localStorage.getItem(storageScoresKey);
@@ -31,6 +34,31 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
 
+  // Track if examiner has started the test
+  const [timerStarted, setTimerStarted] = useState(() => {
+    if (localStorage.getItem(storageTimerStartedKey) === 'true') {
+      return true;
+    }
+    return !!scanData?.progression?.scanned_at;
+  });
+  const [startingTimer, setStartingTimer] = useState(false);
+
+  // 5-minute countdown timer (300 seconds) - sync with scanned_at if already started
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const savedTime = localStorage.getItem(storageTimeLeftKey);
+    if (savedTime !== null) {
+      return parseInt(savedTime, 10);
+    }
+    if (scanData?.progression?.scanned_at) {
+      const scannedTime = new Date(scanData.progression.scanned_at).getTime();
+      const nowTime = new Date().getTime();
+      const elapsed = Math.floor((nowTime - scannedTime) / 1000);
+      const remaining = 300 - elapsed;
+      return remaining > 0 ? remaining : 0;
+    }
+    return 300;
+  });
+
   useEffect(() => {
     localStorage.setItem(storageScoresKey, JSON.stringify(scores));
   }, [scores, storageScoresKey]);
@@ -38,6 +66,36 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
   useEffect(() => {
     localStorage.setItem(storageRemarksKey, remarks);
   }, [remarks, storageRemarksKey]);
+
+  useEffect(() => {
+    if (timerStarted) {
+      localStorage.setItem(storageTimerStartedKey, 'true');
+    } else {
+      localStorage.removeItem(storageTimerStartedKey);
+    }
+  }, [timerStarted, storageTimerStartedKey]);
+
+  useEffect(() => {
+    if (timerStarted && timeLeft >= 0) {
+      localStorage.setItem(storageTimeLeftKey, String(timeLeft));
+    }
+  }, [timeLeft, timerStarted, storageTimeLeftKey]);
+
+  useEffect(() => {
+    const lastGraded = localStorage.getItem(storageLastGradedKey);
+    if (lastGraded !== null) {
+      setTimeout(() => {
+        const element = document.getElementById(`crit-card-${lastGraded}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.classList.add('ring-2', 'ring-cyan-500');
+          setTimeout(() => {
+            element.classList.remove('ring-2', 'ring-cyan-500');
+          }, 2000);
+        }
+      }, 500);
+    }
+  }, [storageLastGradedKey]);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -61,27 +119,12 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
     }
     localStorage.removeItem(storageScoresKey);
     localStorage.removeItem(storageRemarksKey);
+    localStorage.removeItem(storageTimerStartedKey);
+    localStorage.removeItem(storageTimeLeftKey);
+    localStorage.removeItem(storageLastGradedKey);
     localStorage.removeItem('ecos_active_scan');
     onBackToKiosk();
   };
-
-  // Track if examiner has started the test
-  const [timerStarted, setTimerStarted] = useState(() => {
-    return !!scanData?.progression?.scanned_at;
-  });
-  const [startingTimer, setStartingTimer] = useState(false);
-
-  // 5-minute countdown timer (300 seconds) - sync with scanned_at if already started
-  const [timeLeft, setTimeLeft] = useState(() => {
-    if (scanData?.progression?.scanned_at) {
-      const scannedTime = new Date(scanData.progression.scanned_at).getTime();
-      const nowTime = new Date().getTime();
-      const elapsed = Math.floor((nowTime - scannedTime) / 1000);
-      const remaining = 300 - elapsed;
-      return remaining > 0 ? remaining : 0;
-    }
-    return 300;
-  });
 
   useEffect(() => {
     if (!timerStarted || timeLeft <= 0 || submitting || submitStatus) return;
@@ -129,6 +172,7 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
       ...prev,
       [idx]: val
     }));
+    localStorage.setItem(storageLastGradedKey, String(idx));
   };
 
   const handleSubmit = async () => {
@@ -151,6 +195,9 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
       const response = await axios.post('/api/examiner/submit', payload);
       localStorage.removeItem(storageScoresKey);
       localStorage.removeItem(storageRemarksKey);
+      localStorage.removeItem(storageTimerStartedKey);
+      localStorage.removeItem(storageTimeLeftKey);
+      localStorage.removeItem(storageLastGradedKey);
       localStorage.removeItem('ecos_active_scan');
       setSubmitStatus({
         type: 'success',
@@ -167,6 +214,9 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
 
         localStorage.removeItem(storageScoresKey);
         localStorage.removeItem(storageRemarksKey);
+        localStorage.removeItem(storageTimerStartedKey);
+        localStorage.removeItem(storageTimeLeftKey);
+        localStorage.removeItem(storageLastGradedKey);
         localStorage.removeItem('ecos_active_scan');
 
         setSubmitStatus({
@@ -314,6 +364,7 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
             return (
               <div 
                 key={idx} 
+                id={`crit-card-${idx}`}
                 className="glass-card p-5 rounded-2xl flex flex-col gap-3.5 transition-all duration-200"
                 style={{ 
                   borderColor: scores[idx] > 0 
