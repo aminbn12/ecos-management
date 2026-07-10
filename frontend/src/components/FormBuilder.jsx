@@ -48,7 +48,9 @@ const FormBuilder = () => {
   // Criteria (for examiner station)
   const [criteria, setCriteria] = useState([]);
   const [newCritText, setNewCritText] = useState('');
-  const [newCritPoints, setNewCritPoints] = useState('');
+  const [newCritPointsNonFait, setNewCritPointsNonFait] = useState('0');
+  const [newCritPointsPartiel, setNewCritPointsPartiel] = useState('');
+  const [newCritPointsFait, setNewCritPointsFait] = useState('');
   const [newCritCritical, setNewCritCritical] = useState(false);
 
   // QCM / Case (for student autonomous station)
@@ -320,21 +322,33 @@ const FormBuilder = () => {
   const handleAddCriterion = (e) => {
     e.preventDefault();
     if (!newCritText.trim()) return;
-    const pts = parseFloat(newCritPoints) || 2.0;
+    const ptsFait = parseFloat(newCritPointsFait) || 2.0;
+    const ptsPartiel = newCritPointsPartiel !== '' ? parseFloat(newCritPointsPartiel) : ptsFait * 0.5;
+    const ptsNonFait = parseFloat(newCritPointsNonFait) || 0;
+    
     setCriteria([
       ...criteria,
-      { id: Date.now(), text: newCritText.trim(), points: pts, isCritical: newCritCritical }
+      { 
+        id: Date.now(), 
+        text: newCritText.trim(), 
+        points_non_fait: ptsNonFait,
+        points_partiel: ptsPartiel,
+        points_fait: ptsFait,
+        isCritical: newCritCritical 
+      }
     ]);
     setNewCritText('');
-    setNewCritPoints('');
+    setNewCritPointsNonFait('0');
+    setNewCritPointsPartiel('');
+    setNewCritPointsFait('');
     setNewCritCritical(false);
     setIsFormDirty(true);
   };
 
   // Download example CSV for criteria import
   const handleDownloadCriteriaExample = () => {
-    const headers = "Description du geste;Points;Critique\n";
-    const sample = "Lavage des mains et asepsie;2;oui\nIdentification correcte du patient;3;non\nRéalisation de la suture avec technique appropriée;5;oui\nExplication au patient des suites opératoires;1.5;non\nVérification de l'hémostase;2.5;oui\n";
+    const headers = "Description du geste;Non fait;Partiel;Fait;Critique\n";
+    const sample = "Lavage des mains et asepsie;0;1;2;oui\nIdentification correcte du patient;0;1.5;3;non\nRéalisation de la suture avec technique appropriée;0;2.5;5;oui\nExplication au patient des suites opératoires;0;0.5;1;non\nVérification de l'hémostase;0;1;2;ok\n";
     const blob = new Blob([headers + sample], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -371,16 +385,23 @@ const FormBuilder = () => {
           const cols = line.split(separator).map(c => c.trim());
 
           const description = cols[0] || '';
-          const pointsRaw = cols[1] || '2';
-          const critiqueRaw = (cols[2] || '').toLowerCase().trim();
+          const ptsNonFaitRaw = cols[1] || '0';
+          const ptsPartielRaw = cols[2] || '';
+          const ptsFaitRaw = cols[3] || '2';
+          const critiqueRaw = (cols[4] || '').toLowerCase().trim();
 
           if (description) {
-            const points = parseFloat(pointsRaw.replace(',', '.')) || 2.0;
+            const ptsFait = parseFloat(ptsFaitRaw.replace(',', '.')) || 2.0;
+            const ptsPartiel = ptsPartielRaw !== '' ? parseFloat(ptsPartielRaw.replace(',', '.')) : ptsFait * 0.5;
+            const ptsNonFait = parseFloat(ptsNonFaitRaw.replace(',', '.')) || 0;
             const isCritical = ['oui', 'ok', 'yes', 'true', '1'].includes(critiqueRaw);
+            
             importedCriteria.push({
               id: Date.now() + i,
               text: description,
-              points: points,
+              points_non_fait: ptsNonFait,
+              points_partiel: ptsPartiel,
+              points_fait: ptsFait,
               isCritical: isCritical
             });
           }
@@ -432,7 +453,9 @@ const FormBuilder = () => {
     if (currentStation.type === 'examiner_eval') {
       compiledCriteria = criteria.map(c => ({
         text: c.text,
-        points: parseFloat(c.points || 2.0),
+        points_non_fait: parseFloat(c.points_non_fait !== undefined ? c.points_non_fait : 0),
+        points_partiel: parseFloat(c.points_partiel !== undefined ? c.points_partiel : (c.points || 2.0) * 0.5),
+        points_fait: parseFloat(c.points_fait !== undefined ? c.points_fait : (c.points || 2.0)),
         isCritical: c.isCritical
       }));
       // Use the total_points as the universal scale for all criteria
@@ -772,7 +795,7 @@ const FormBuilder = () => {
                   </div>
                   
                   <div className="flex flex-col sm:flex-row gap-3 p-3.5 rounded-xl items-end border" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
-                    <div className="flex-1 flex flex-col gap-1 min-w-[200px]">
+                    <div className="flex-1 flex flex-col gap-1 min-w-[180px]">
                       <label className="text-[9px] t-text-secondary">Description du geste</label>
                       <input 
                         type="text" 
@@ -782,19 +805,46 @@ const FormBuilder = () => {
                         placeholder="Ex: Réalisation de la suture..."
                       />
                     </div>
-                    <div className="w-20 flex flex-col gap-1">
-                      <label className="text-[9px] t-text-secondary">Barème (pts)</label>
-                      <input 
-                        type="number" 
-                        step="0.25"
-                        min="0"
-                        max="20"
-                        placeholder="ex: 2"
-                        value={newCritPoints}
-                        onChange={(e) => setNewCritPoints(e.target.value)}
-                        className="glass-input p-2 rounded-lg text-xs"
-                      />
+                    
+                    <div className="flex gap-2">
+                      <div className="w-16 flex flex-col gap-1">
+                        <label className="text-[9px] t-text-secondary">Non fait</label>
+                        <input 
+                          type="number" 
+                          step="0.25"
+                          min="0"
+                          placeholder="0"
+                          value={newCritPointsNonFait}
+                          onChange={(e) => setNewCritPointsNonFait(e.target.value)}
+                          className="glass-input p-2 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div className="w-16 flex flex-col gap-1">
+                        <label className="text-[9px] t-text-secondary">Partiel</label>
+                        <input 
+                          type="number" 
+                          step="0.25"
+                          min="0"
+                          placeholder="ex: 1.5"
+                          value={newCritPointsPartiel}
+                          onChange={(e) => setNewCritPointsPartiel(e.target.value)}
+                          className="glass-input p-2 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div className="w-16 flex flex-col gap-1">
+                        <label className="text-[9px] t-text-secondary">Fait</label>
+                        <input 
+                          type="number" 
+                          step="0.25"
+                          min="0"
+                          placeholder="ex: 3"
+                          value={newCritPointsFait}
+                          onChange={(e) => setNewCritPointsFait(e.target.value)}
+                          className="glass-input p-2 rounded-lg text-xs"
+                        />
+                      </div>
                     </div>
+
                     <div className="flex items-center gap-1.5 pb-2 text-xs t-text-secondary">
                       <input 
                         type="checkbox" 
@@ -812,26 +862,33 @@ const FormBuilder = () => {
                   </div>
 
                   <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1">
-                    {criteria.map((c, idx) => (
-                      <div key={c.id || idx} className="p-3 border rounded-xl flex items-center justify-between gap-3 text-xs" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
-                        <span className="font-medium t-text-heading">
-                          {idx + 1}. {c.text} {c.isCritical && <b className="text-rose-500 ml-1">🚨 (Critique)</b>}
-                        </span>
-                        <div className="flex items-center gap-3">
-                          <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-                            Barème : {c.points || 2} pts
+                    {criteria.map((c, idx) => {
+                      const ptsFait = c.points_fait !== undefined ? c.points_fait : (c.points || 2.0);
+                      const ptsPartiel = c.points_partiel !== undefined ? c.points_partiel : ptsFait * 0.5;
+                      const ptsNonFait = c.points_non_fait !== undefined ? c.points_non_fait : 0;
+                      return (
+                        <div key={c.id || idx} className="p-3 border rounded-xl flex items-center justify-between gap-3 text-xs" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
+                          <span className="font-medium t-text-heading">
+                            {idx + 1}. {c.text} {c.isCritical && <b className="text-rose-500 ml-1">🚨 (Critique)</b>}
                           </span>
-                          <button type="button" onClick={() => { setCriteria(criteria.filter(cr => cr.id !== c.id)); setIsFormDirty(true); }} className="t-text-muted hover:text-rose-500">❌</button>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                              Barème : {ptsNonFait} | {ptsPartiel} | {ptsFait} pts
+                            </span>
+                            <button type="button" onClick={() => { setCriteria(criteria.filter(cr => cr.id !== c.id)); setIsFormDirty(true); }} className="t-text-muted hover:text-rose-500">❌</button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {criteria.length > 0 && (
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 rounded-xl border text-[11px] gap-2 mt-1"
                       style={{ background: 'var(--color-bg-alt)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
                       <div>
-                        Cumul des barèmes configurés : <strong className="t-accent text-xs">{criteria.reduce((sum, c) => sum + parseFloat(c.points || 0), 0)} pts</strong>
+                        Cumul des barèmes (Fait) : <strong className="t-accent text-xs">
+                          {criteria.reduce((sum, c) => sum + parseFloat(c.points_fait !== undefined ? c.points_fait : (c.points || 0)), 0)} pts
+                        </strong>
                       </div>
                       <div className="text-[10px] t-text-muted italic">
                         💡 Normalisation automatique sur {totalPoints} pts lors de l'évaluation.

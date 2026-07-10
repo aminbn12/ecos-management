@@ -159,11 +159,19 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
   const maxPossiblePoints = evaluation_form?.total_points || 20;
   
   // Custom grading system: sum of individual criteria points/weights
-  const sumOfWeights = criteriaList.reduce((sum, item) => sum + parseFloat(item.points || 2.0), 0);
+  const sumOfWeights = criteriaList.reduce((sum, item) => {
+    const ptsFait = item.points_fait !== undefined ? parseFloat(item.points_fait) : parseFloat(item.points || 2.0);
+    return sum + ptsFait;
+  }, 0);
+
   const rawScore = criteriaList.reduce((sum, item, idx) => {
     const rating = scores[idx] !== undefined ? scores[idx] : 0;
-    const coef = rating === 2 ? 1.0 : rating === 1 ? 0.5 : 0.0;
-    return sum + (parseFloat(item.points || 2.0) * coef);
+    const ptsFait = item.points_fait !== undefined ? parseFloat(item.points_fait) : parseFloat(item.points || 2.0);
+    const ptsPartiel = item.points_partiel !== undefined ? parseFloat(item.points_partiel) : ptsFait * 0.5;
+    const ptsNonFait = item.points_non_fait !== undefined ? parseFloat(item.points_non_fait) : 0;
+
+    const val = rating === 2 ? ptsFait : rating === 1 ? ptsPartiel : ptsNonFait;
+    return sum + val;
   }, 0);
 
   // Normalize raw score to be out of maxPossiblePoints (ex: 20)
@@ -400,44 +408,55 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
                     )}
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-extrabold t-accent block">
-                      Score : {scores[idx] !== undefined ? scores[idx] : 0}
-                    </span>
-                    <span className="text-[10px] t-text-secondary">
-                      ({scores[idx] === 2 
-                        ? (item.points || 2.0) 
-                        : scores[idx] === 1 
-                          ? (item.points || 2.0) * 0.5 
-                          : 0} / {item.points || 2.0} pts)
-                    </span>
+                    {(() => {
+                      const ptsFait = item.points_fait !== undefined ? parseFloat(item.points_fait) : parseFloat(item.points || 2.0);
+                      const ptsPartiel = item.points_partiel !== undefined ? parseFloat(item.points_partiel) : ptsFait * 0.5;
+                      const ptsNonFait = item.points_non_fait !== undefined ? parseFloat(item.points_non_fait) : 0;
+                      const selectedPoints = scores[idx] === 2 ? ptsFait : scores[idx] === 1 ? ptsPartiel : ptsNonFait;
+                      return (
+                        <>
+                          <span className="text-sm font-extrabold t-accent block">
+                            Score : {selectedPoints} pt{selectedPoints > 1 ? 's' : ''}
+                          </span>
+                          <span className="text-[10px] t-text-secondary">
+                            (max: {ptsFait} pts)
+                          </span>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
                 <div className="flex gap-2 mt-2">
-                  {[
-                    { val: 0, scoreVal: 0, label: "Non fait", bgGradient: 'linear-gradient(135deg, #EF4444, #B91C1C)' },
-                    { val: 1, scoreVal: (item.points || 2.0) * 0.5, label: "Partiel", bgGradient: 'linear-gradient(135deg, #F59E0B, #B45309)' },
-                    { val: 2, scoreVal: item.points || 2.0, label: "Fait", bgGradient: 'linear-gradient(135deg, #10B981, #047857)' }
-                  ].map((level) => {
-                    const isSelected = scores[idx] === level.val;
-                    return (
-                      <button
-                        key={level.val}
-                        type="button"
-                        onClick={() => handleSelectScore(idx, level.val)}
-                        className="flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition duration-150 flex flex-col items-center justify-center gap-0.5 focus:outline-none"
-                        style={{
-                          background: isSelected ? level.bgGradient : 'var(--color-input-bg)',
-                          borderColor: isSelected ? 'transparent' : 'var(--color-input-border)',
-                          color: isSelected ? '#fff' : 'var(--color-text-secondary)',
-                          boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
-                        }}
-                      >
-                        <span className="text-sm font-black">{level.scoreVal}</span>
-                        <span className="text-[9px] font-medium opacity-80">{level.label}</span>
-                      </button>
-                    );
-                  })}
+                  {(() => {
+                    const ptsFait = item.points_fait !== undefined ? parseFloat(item.points_fait) : parseFloat(item.points || 2.0);
+                    const ptsPartiel = item.points_partiel !== undefined ? parseFloat(item.points_partiel) : ptsFait * 0.5;
+                    const ptsNonFait = item.points_non_fait !== undefined ? parseFloat(item.points_non_fait) : 0;
+                    return [
+                      { val: 0, scoreVal: ptsNonFait, label: "Non fait", bgGradient: 'linear-gradient(135deg, #EF4444, #B91C1C)' },
+                      { val: 1, scoreVal: ptsPartiel, label: "Partiel", bgGradient: 'linear-gradient(135deg, #F59E0B, #B45309)' },
+                      { val: 2, scoreVal: ptsFait, label: "Fait", bgGradient: 'linear-gradient(135deg, #10B981, #047857)' }
+                    ].map((level) => {
+                      const isSelected = scores[idx] === level.val;
+                      return (
+                        <button
+                          key={level.val}
+                          type="button"
+                          onClick={() => handleSelectScore(idx, level.val)}
+                          className="flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition duration-150 flex flex-col items-center justify-center gap-0.5 focus:outline-none"
+                          style={{
+                            background: isSelected ? level.bgGradient : 'var(--color-input-bg)',
+                            borderColor: isSelected ? 'transparent' : 'var(--color-input-border)',
+                            color: isSelected ? '#fff' : 'var(--color-text-secondary)',
+                            boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
+                          }}
+                        >
+                          <span className="text-sm font-black">{level.scoreVal}</span>
+                          <span className="text-[9px] font-medium opacity-80">{level.label}</span>
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             );
