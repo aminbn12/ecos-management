@@ -348,7 +348,12 @@ const FormBuilder = () => {
   // Download example CSV for criteria import
   const handleDownloadCriteriaExample = () => {
     const headers = "Description du geste;Non fait;Partiel;Fait;Critique\n";
-    const sample = "Lavage des mains et asepsie;0;1;2;oui\nIdentification correcte du patient;0;1.5;3;non\nRéalisation de la suture avec technique appropriée;0;2.5;5;oui\nExplication au patient des suites opératoires;0;0.5;1;non\nVérification de l'hémostase;0;1;2;ok\n";
+    const sample = 
+      "Anamnèse (État général, motif de consultation, signes généraux, lien dentaire);0;2.5;5;non\n" +
+      "Examen clinique extra-buccal (Inspection/palpation correcte de la joue, recherche de fluctuation);0;2.5;5;non\n" +
+      "Interprétation de la radio (Reconnaît l'image périapicale en regard de la 36);0;1.5;3;non\n" +
+      "Diagnostic évoqué (Cellulite séreuse d'origine dentaire génienne basse précisément formulée);0;2.5;5;non\n" +
+      "Attitude professionnelle (Empathie, communication claire avec le patient, posture, hygiène);0;1;2;non\n";
     const blob = new Blob([headers + sample], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
