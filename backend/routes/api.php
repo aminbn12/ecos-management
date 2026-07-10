@@ -32,6 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/settings', [AdminController::class, 'getSettings']);
         Route::post('/admin/settings', [AdminController::class, 'saveSetting']);
         Route::post('/admin/exams/{id}/delete', [AdminController::class, 'deleteExam']);
+        Route::post('/admin/exams/{id}/duplicate', [AdminController::class, 'duplicateExam']);
         
         // Stations management (restricted to admins)
         Route::post('/admin/stations', [AdminController::class, 'saveStation']);

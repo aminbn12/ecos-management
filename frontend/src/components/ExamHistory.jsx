@@ -9,6 +9,9 @@ const ExamHistory = () => {
   const [status, setStatus] = useState({ type: '', message: '' });
   const [allowDeletion, setAllowDeletion] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+
   // View Exam Details State
   const [selectedExam, setSelectedExam] = useState(null);
   const [examResults, setExamResults] = useState([]);
@@ -41,6 +44,26 @@ const ExamHistory = () => {
         { id: 2, title: "Examen ECOS Prothèse & Endodontie 2025", date: "2025-06-15", status: "completed", progressions_count: 42, average_score: 13.8 },
       ]);
       setAllowDeletion(true); // Default to true in offline mode for testing
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDuplicateExam = async (examId) => {
+    if (!window.confirm("Voulez-vous vraiment dupliquer cette session d'examen (configuration et examinateurs uniquement) ?")) {
+      return;
+    }
+    setLoading(true);
+    try {
+      await axios.post(`/api/admin/exams/${examId}/duplicate`);
+      setStatus({ type: 'success', message: 'Examen dupliqué avec succès.' });
+      await loadExams();
+    } catch (err) {
+      console.error(err);
+      setStatus({
+        type: 'danger',
+        message: err.response?.data?.message || 'Erreur lors de la duplication.'
+      });
     } finally {
       setLoading(false);
     }
@@ -290,14 +313,50 @@ const ExamHistory = () => {
               Sessions d'Examens
             </h3>
 
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                placeholder="Chercher un examen..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 glass-input px-3 py-2 rounded-xl text-xs"
+              />
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="glass-input px-3 py-2 rounded-xl text-xs sm:w-36"
+                title="Filtrer par date"
+              />
+              {(searchQuery || filterDate) && (
+                <button
+                  onClick={() => { setSearchQuery(''); setFilterDate(''); }}
+                  className="px-2.5 py-1.5 border rounded-xl text-[10px] font-bold t-text-secondary hover:bg-black/5 dark:hover:bg-white/5 transition"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  Effacer
+                </button>
+              )}
+            </div>
+
             {loading ? (
               <div className="text-center py-10 t-text-secondary text-sm">Chargement...</div>
-            ) : exams.length === 0 ? (
-              <div className="text-center py-10 t-text-muted text-xs">Aucune session d'examen disponible.</div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {exams.map(exam => {
-                  const isSelected = selectedExam?.id === exam.id;
+            ) : (() => {
+              const filteredExams = exams.filter(exam => {
+                const matchName = exam.title?.toLowerCase().includes(searchQuery.toLowerCase());
+                const matchDate = filterDate ? exam.date === filterDate : true;
+                return matchName && matchDate;
+              });
+
+              if (filteredExams.length === 0) {
+                return <div className="text-center py-10 t-text-muted text-xs">Aucune session d'examen correspondante.</div>;
+              }
+
+              return (
+                <div className="flex flex-col gap-3">
+                  {filteredExams.map(exam => {
+                    const isSelected = selectedExam?.id === exam.id;
                   return (
                     <div
                       key={exam.id}
@@ -344,6 +403,13 @@ const ExamHistory = () => {
                           className="py-1.5 px-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 rounded-lg text-[10px] font-bold transition"
                         >
                           📥 Excel
+                        </button>
+                        <button
+                          onClick={() => handleDuplicateExam(exam.id)}
+                          className="py-1.5 px-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 rounded-lg text-[10px] font-bold transition"
+                          title="Dupliquer cet examen sans les candidats et les résultats"
+                        >
+                          👥 Dupliquer
                         </button>
 
                         {/* Status Actions */}
@@ -406,7 +472,8 @@ const ExamHistory = () => {
                   );
                 })}
               </div>
-            )}
+            );
+          })()}
           </div>
         </section>
 

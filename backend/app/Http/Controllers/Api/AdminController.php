@@ -181,6 +181,61 @@ class AdminController extends Controller
     }
 
     /**
+     * Duplicate an exam including stations and evaluation forms.
+     */
+    public function duplicateExam(Request $request, $id)
+    {
+        $originalExam = Exam::with('stations.evaluationForm')->find($id);
+        if (!$originalExam) {
+            return response()->json([
+                'message' => 'Examen introuvable.'
+            ], 404);
+        }
+
+        try {
+            return DB::transaction(function () use ($originalExam) {
+                // 1. Duplicate Exam
+                $duplicatedExam = Exam::create([
+                    'title' => $originalExam->title . ' (Copie)',
+                    'date' => $originalExam->date,
+                    'status' => 'inactive', // Duplicate is inactive by default
+                ]);
+
+                // 2. Duplicate Stations
+                foreach ($originalExam->stations as $originalStation) {
+                    $duplicatedStation = Station::create([
+                        'exam_id' => $duplicatedExam->id,
+                        'name' => $originalStation->name,
+                        'step_number' => $originalStation->step_number,
+                        'is_reserve' => $originalStation->is_reserve,
+                        'type' => $originalStation->type,
+                        'examiner_id' => $originalStation->examiner_id,
+                    ]);
+
+                    // 3. Duplicate Evaluation Form if exists
+                    if ($originalStation->evaluationForm) {
+                        EvaluationForm::create([
+                            'station_id' => $duplicatedStation->id,
+                            'title' => $originalStation->evaluationForm->title,
+                            'total_points' => $originalStation->evaluationForm->total_points,
+                            'criteria' => $originalStation->evaluationForm->criteria,
+                        ]);
+                    }
+                }
+
+                return response()->json([
+                    'message' => 'Examen dupliqué avec succès.',
+                    'exam' => $duplicatedExam
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de la duplication : ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get all exams, stations (with examiner info), and available examiners.
      */
     public function getStations(Request $request)
