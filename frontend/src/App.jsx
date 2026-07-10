@@ -42,6 +42,7 @@ const LoginView = () => {
   const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -117,14 +118,24 @@ const LoginView = () => {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs t-text-secondary font-semibold">Mot de passe</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="glass-input px-4 py-2.5 rounded-xl text-sm"
-            />
+            <div className="relative flex items-center">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="glass-input px-4 py-2.5 pr-10 rounded-xl text-sm w-full"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 text-sm focus:outline-none hover:opacity-80 active:scale-95 transition"
+                title={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              >
+                {showPassword ? "👁️" : "🙈"}
+              </button>
+            </div>
           </div>
 
           {error && (

@@ -30,6 +30,7 @@ const StudentManager = () => {
   const [gender, setGender] = useState('m');
   const [level, setLevel] = useState('5');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const loadStudents = async () => {
     try {
@@ -140,6 +141,7 @@ const StudentManager = () => {
     setGender('m');
     setLevel('5');
     setPassword('');
+    setShowPassword(false);
     setFormMode('create');
     setEditingId(null);
   };
@@ -329,13 +331,23 @@ const StudentManager = () => {
                 <label className="text-[10px] t-text-secondary font-semibold uppercase">
                   {formMode === 'create' ? 'Mot de passe' : 'Modifier le mot de passe'}
                 </label>
-                <input
-                  type="password"
-                  placeholder={formMode === 'create' ? "Par défaut : le matricule" : "Laisser vide pour ne pas modifier"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="glass-input p-2.5 rounded-xl text-sm"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder={formMode === 'create' ? "Par défaut : le matricule" : "Laisser vide pour ne pas modifier"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="glass-input p-2.5 pr-10 rounded-xl text-sm w-full"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 text-sm focus:outline-none hover:opacity-80 active:scale-95 transition"
+                    title={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  >
+                    {showPassword ? "👁️" : "🙈"}
+                  </button>
+                </div>
                 <p className="text-[9px] t-text-muted mt-0.5">
                   {formMode === 'create' 
                     ? "Si laissé vide, le matricule sera utilisé comme mot de passe." 

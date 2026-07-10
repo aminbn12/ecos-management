@@ -12,6 +12,7 @@ const AdminManager = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState('admin');
 
   // Load admins list
@@ -36,6 +37,7 @@ const AdminManager = () => {
     setName('');
     setEmail('');
     setPassword('');
+    setShowPassword(false);
     setRole('admin');
     setFormMode('create');
     setEditingId(null);
@@ -156,14 +158,24 @@ const AdminManager = () => {
                 <label className="text-[10px] t-text-secondary font-semibold uppercase">
                   {formMode === 'create' ? 'Mot de passe' : 'Nouveau mot de passe (laisser vide pour conserver)'}
                 </label>
-                <input
-                  type="password"
-                  placeholder={formMode === 'create' ? '••••••••' : 'Laisser vide pour conserver'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="glass-input p-2.5 rounded-xl text-sm"
-                  required={formMode === 'create'}
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder={formMode === 'create' ? '••••••••' : 'Laisser vide pour conserver'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="glass-input p-2.5 pr-10 rounded-xl text-sm w-full"
+                    required={formMode === 'create'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 text-sm focus:outline-none hover:opacity-80 active:scale-95 transition"
+                    title={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  >
+                    {showPassword ? "👁️" : "🙈"}
+                  </button>
+                </div>
               </div>
 
               {/* Submit */}
