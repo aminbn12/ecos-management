@@ -415,9 +415,9 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
 
                 <div className="flex gap-2 mt-2">
                   {[
-                    { val: 0, label: "0 (Non fait)", bgGradient: 'linear-gradient(135deg, #EF4444, #B91C1C)' },
-                    { val: 1, label: "1 (Partiel)", bgGradient: 'linear-gradient(135deg, #F59E0B, #B45309)' },
-                    { val: 2, label: "2 (Complet)", bgGradient: 'linear-gradient(135deg, #10B981, #047857)' }
+                    { val: 0, scoreVal: 0, label: "Non fait", bgGradient: 'linear-gradient(135deg, #EF4444, #B91C1C)' },
+                    { val: 1, scoreVal: (item.points || 2.0) * 0.5, label: "Partiel", bgGradient: 'linear-gradient(135deg, #F59E0B, #B45309)' },
+                    { val: 2, scoreVal: item.points || 2.0, label: "Fait", bgGradient: 'linear-gradient(135deg, #10B981, #047857)' }
                   ].map((level) => {
                     const isSelected = scores[idx] === level.val;
                     return (
@@ -433,7 +433,7 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
                           boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
                         }}
                       >
-                        <span className="text-sm font-black">{level.val}</span>
+                        <span className="text-sm font-black">{level.scoreVal}</span>
                         <span className="text-[9px] font-medium opacity-80">{level.label}</span>
                       </button>
                     );
