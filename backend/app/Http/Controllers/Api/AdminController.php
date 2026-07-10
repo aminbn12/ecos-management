@@ -198,7 +198,7 @@ class AdminController extends Controller
                 $duplicatedExam = Exam::create([
                     'title' => $originalExam->title . ' (Copie)',
                     'date' => now()->toDateString(),
-                    'status' => 'inactive', // Duplicate is inactive by default
+                    'status' => 'draft', // Duplicate is draft (En attente) by default
                 ]);
 
                 // 2. Duplicate Stations
