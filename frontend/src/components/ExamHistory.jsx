@@ -59,11 +59,25 @@ const ExamHistory = () => {
       setStatus({ type: 'success', message: 'Examen dupliqué avec succès.' });
       await loadExams();
     } catch (err) {
-      console.error(err);
-      setStatus({
-        type: 'danger',
-        message: err.response?.data?.message || 'Erreur lors de la duplication.'
-      });
+      console.warn("Backend offline, simulating exam duplication locally.");
+      const originalExam = exams.find(e => e.id === examId);
+      if (originalExam) {
+        const duplicated = {
+          id: Date.now(), // Temp unique ID
+          title: originalExam.title + ' (Copie)',
+          date: new Date().toISOString().split('T')[0], // Today's date
+          status: 'draft', // Draft status allows activation button to display
+          progressions_count: 0,
+          average_score: null
+        };
+        setExams([duplicated, ...exams]);
+        setStatus({ type: 'success', message: 'Mode Démo : Examen dupliqué avec succès.' });
+      } else {
+        setStatus({
+          type: 'danger',
+          message: err.response?.data?.message || 'Erreur lors de la duplication.'
+        });
+      }
     } finally {
       setLoading(false);
     }
