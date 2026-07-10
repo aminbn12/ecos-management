@@ -308,8 +308,10 @@ html.light .glow-orange { text-shadow: none; }
 
 .camera-viewfinder-wrapper {
   position: relative;
-  flex: 1;
-  min-height: 0;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 400px;
+  margin: 0 auto;
   border-radius: 20px;
   overflow: hidden;
   background: #000;

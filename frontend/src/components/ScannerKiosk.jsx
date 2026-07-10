@@ -167,8 +167,12 @@ const ScannerKiosk = ({ onScanSuccess }) => {
         };
 
         const config = {
-          fps: 15,
-          qrbox: { width: 300, height: 150 },
+          fps: 20,
+          qrbox: (width, height) => {
+            const minDim = Math.min(width, height);
+            const size = Math.floor(minDim * 0.75);
+            return { width: size, height: size };
+          },
           aspectRatio: 1.0,
           formatsToSupport: [
             Html5QrcodeSupportedFormats.QR_CODE,

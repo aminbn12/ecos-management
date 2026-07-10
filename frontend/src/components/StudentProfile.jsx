@@ -213,6 +213,7 @@ const StudentProfile = () => {
               bgColor="#ffffff"
               fgColor="#0f172a"
               includeMargin={false}
+              style={{ width: '100%', height: 'auto', maxWidth: '200px' }}
             />
           )}
           <span className="text-sm font-mono font-bold tracking-widest text-[#0f172a]">{student?.matricule}</span>
