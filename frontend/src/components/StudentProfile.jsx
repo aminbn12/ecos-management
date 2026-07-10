@@ -233,7 +233,16 @@ const StudentProfile = () => {
           </div>
         )}
 
-        {progression?.status === 'completed' ? (
+        {progression?.status === 'paused' ? (
+          <div className="p-5 rounded-2xl border text-center animate-pulse flex flex-col gap-3"
+            style={{ background: 'var(--color-warning-bg)', color: 'var(--color-warning)', borderColor: 'var(--color-warning)' }}>
+            <span className="text-3xl">⏸️</span>
+            <span className="text-sm font-black uppercase tracking-wider">Examen Suspendu Temporairement</span>
+            <p className="text-xs font-bold leading-relaxed">
+              Votre examen a été mis en pause par l'administration. Veuillez patienter calmement et vous rapprocher d'un encadrant si nécessaire.
+            </p>
+          </div>
+        ) : progression?.status === 'completed' ? (
           profileData?.show_average ? (
             <div className="p-3 rounded-xl text-xs font-semibold text-center font-bold"
               style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)' }}>

@@ -128,6 +128,64 @@ const LiveDashboard = () => {
     setStats({ total, active, completed, jury });
   };
 
+  const handlePauseStudent = async (progressionId) => {
+    if (!window.confirm("Voulez-vous suspendre l'examen de cet étudiant ? La salle sera libérée immédiatement.")) {
+      return;
+    }
+    try {
+      await axios.post(`/api/admin/progressions/${progressionId}/pause`);
+      fetchData();
+    } catch (err) {
+      console.warn("Backend offline, updating local mock state for Pause.");
+      setProgressions(prev => prev.map(p => {
+        if (p.id === progressionId) {
+          return { ...p, status: 'paused', current_station: null };
+        }
+        return p;
+      }));
+    }
+  };
+
+  const handleResumeStudent = async (progressionId) => {
+    if (!window.confirm("Voulez-vous réactiver l'examen de cet étudiant ? Il reprendra à sa station d'origine.")) {
+      return;
+    }
+    try {
+      await axios.post(`/api/admin/progressions/${progressionId}/resume`);
+      fetchData();
+    } catch (err) {
+      console.warn("Backend offline, updating local mock state for Resume.");
+      setProgressions(prev => prev.map(p => {
+        if (p.id === progressionId) {
+          return { 
+            ...p, 
+            status: 'in_progress', 
+            current_station: { name: 'Anesthésie Locale', step_number: 2, is_reserve: false }
+          };
+        }
+        return p;
+      }));
+    }
+  };
+
+  const handleAbandonStudent = async (progressionId) => {
+    if (!window.confirm("Voulez-vous enregistrer l'abandon définitif de cet étudiant ? Cette action est irréversible.")) {
+      return;
+    }
+    try {
+      await axios.post(`/api/admin/progressions/${progressionId}/abandon`);
+      fetchData();
+    } catch (err) {
+      console.warn("Backend offline, updating local mock state for Abandon.");
+      setProgressions(prev => prev.map(p => {
+        if (p.id === progressionId) {
+          return { ...p, status: 'completed', current_station: null };
+        }
+        return p;
+      }));
+    }
+  };
+
   useEffect(() => {
     fetchData();
     let interval;
@@ -294,7 +352,7 @@ const LiveDashboard = () => {
                       <th className="py-4 px-4 text-center">Parcours (5 Étapes)</th>
                       <th className="py-4 px-4 text-center">Note Moyenne</th>
                       <th className="py-4 px-4 text-center">Temps Moyen</th>
-                      <th className="py-4 px-4 text-right">Statut</th>
+                      <th className="py-4 px-4 text-right">Statut & Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
@@ -410,18 +468,62 @@ const LiveDashboard = () => {
                             })()}
                           </td>
                           <td className="py-4 px-4 text-right">
-                            {prog.requires_jury_decision ? (
-                              <div className="flex flex-col items-end gap-1">
-                                <span className="text-xs px-3 py-1 rounded-lg font-bold flex items-center gap-1.5 animate-pulse" style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
-                                  🚨 Decision Jury Requise
+                            <div className="flex flex-col items-end gap-2">
+                              {/* Status Badges */}
+                              {prog.status === 'paused' ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase bg-amber-500/15 text-amber-500 border border-amber-500/30 animate-pulse">
+                                  ⏸️ Mis en Pause
                                 </span>
-                                <span className="text-[10px] t-text-muted">Rattrapage échoué</span>
-                              </div>
-                            ) : prog.status === 'completed' ? (
-                              <span className="text-xs font-medium" style={{ color: 'var(--color-success)' }}>Validé</span>
-                            ) : (
-                              <span className="text-xs font-medium" style={{ color: 'var(--color-accent)' }}>Progression fluide</span>
-                            )}
+                              ) : prog.requires_jury_decision ? (
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase bg-rose-500/15 text-rose-500 border border-rose-500/30 animate-pulse">
+                                    🚨 Décision Jury
+                                  </span>
+                                  <span className="text-[8px] t-text-muted">Rattrapage échoué</span>
+                                </div>
+                              ) : prog.status === 'completed' ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                                  ✅ Terminé
+                                </span>
+                              ) : (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase bg-cyan-500/15 text-cyan-500 border border-cyan-500/30">
+                                  ⚡ En cours
+                                </span>
+                              )}
+
+                              {/* Action Buttons (Only if not visualising past exam) */}
+                              {!isVisualizationMode && (
+                                <div className="flex gap-1.5 mt-1">
+                                  {prog.status === 'in_progress' && (
+                                    <button
+                                      onClick={() => handlePauseStudent(prog.id)}
+                                      className="py-1 px-2 border border-amber-500/30 hover:border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-lg text-[9px] font-black uppercase transition"
+                                      title="Suspendre l'examen (malaise...)"
+                                    >
+                                      ⏸️ Pause
+                                    </button>
+                                  )}
+                                  {prog.status === 'paused' && (
+                                    <>
+                                      <button
+                                        onClick={() => handleResumeStudent(prog.id)}
+                                        className="py-1 px-2 border border-emerald-500/30 hover:border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-[9px] font-black uppercase transition"
+                                        title="Reprendre l'examen"
+                                      >
+                                        ▶️ Reprendre
+                                      </button>
+                                      <button
+                                        onClick={() => handleAbandonStudent(prog.id)}
+                                        className="py-1 px-2 border border-rose-500/30 hover:border-rose-500/50 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-lg text-[9px] font-black uppercase transition"
+                                        title="Abandonner définitivement"
+                                      >
+                                        🛑 Abandon
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))

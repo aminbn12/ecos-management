@@ -28,6 +28,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin & Super Admin Group
     Route::middleware(CheckRole::class . ':super_admin,admin')->group(function () {
         Route::get('/admin/live-dashboard', [AdminController::class, 'liveDashboard']);
+        Route::post('/admin/progressions/{id}/pause', [AdminController::class, 'pauseProgression']);
+        Route::post('/admin/progressions/{id}/resume', [AdminController::class, 'resumeProgression']);
+        Route::post('/admin/progressions/{id}/abandon', [AdminController::class, 'abandonProgression']);
         Route::post('/admin/exams/{id}/terminate', [AdminController::class, 'terminateExam']);
         Route::get('/admin/settings', [AdminController::class, 'getSettings']);
         Route::post('/admin/settings', [AdminController::class, 'saveSetting']);

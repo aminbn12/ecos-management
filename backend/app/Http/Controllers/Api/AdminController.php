@@ -236,6 +236,70 @@ class AdminController extends Controller
     }
 
     /**
+     * Pause a student progression (medical emergency / malaise) and clear scan to free the room.
+     */
+    public function pauseProgression(Request $request, $id)
+    {
+        $progression = ExamProgression::find($id);
+        if (!$progression) {
+            return response()->json(['message' => 'Progression introuvable.'], 404);
+        }
+
+        $progression->status = 'paused';
+        $progression->scanned_at = null; // Free up the station scanner kiosk!
+        $progression->save();
+
+        return response()->json([
+            'message' => 'Examen mis en pause temporaire pour ce candidat. La salle est libérée.',
+            'progression' => $progression
+        ]);
+    }
+
+    /**
+     * Resume a paused student progression.
+     */
+    public function resumeProgression(Request $request, $id)
+    {
+        $progression = ExamProgression::find($id);
+        if (!$progression) {
+            return response()->json(['message' => 'Progression introuvable.'], 404);
+        }
+
+        if ($progression->status !== 'paused') {
+            return response()->json(['message' => 'Cette progression n\'est pas en pause.'], 400);
+        }
+
+        $progression->status = 'in_progress';
+        $progression->save();
+
+        return response()->json([
+            'message' => 'Examen repris pour ce candidat. Il peut se diriger à nouveau vers sa station.',
+            'progression' => $progression
+        ]);
+    }
+
+    /**
+     * Abandon a student progression permanently (completed status).
+     */
+    public function abandonProgression(Request $request, $id)
+    {
+        $progression = ExamProgression::find($id);
+        if (!$progression) {
+            return response()->json(['message' => 'Progression introuvable.'], 404);
+        }
+
+        $progression->status = 'completed';
+        $progression->current_station_id = null;
+        $progression->scanned_at = null;
+        $progression->save();
+
+        return response()->json([
+            'message' => 'Examen clos pour ce candidat (Abandon enregistré).',
+            'progression' => $progression
+        ]);
+    }
+
+    /**
      * Get all exams, stations (with examiner info), and available examiners.
      */
     public function getStations(Request $request)
