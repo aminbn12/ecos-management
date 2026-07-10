@@ -14,8 +14,15 @@ const LiveDashboard = () => {
   const [search, setSearch] = useState('');
   const [filterJury, setFilterJury] = useState(false);
 
-  const queryParams = new URLSearchParams(window.location.search);
-  const urlExamId = queryParams.get('exam_id');
+  // Parse query parameters from both standard search and hash search
+  const getQueryParam = (name) => {
+    const hash = window.location.hash;
+    const qIndex = hash.indexOf('?');
+    const searchString = qIndex !== -1 ? hash.substring(qIndex) : window.location.search;
+    return new URLSearchParams(searchString).get(name);
+  };
+
+  const urlExamId = getQueryParam('exam_id');
   const isVisualizationMode = !!urlExamId;
 
   const [autoRefresh, setAutoRefresh] = useState(!isVisualizationMode);
