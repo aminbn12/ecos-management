@@ -157,10 +157,19 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
   };
 
   const maxPossiblePoints = evaluation_form?.total_points || 20;
-  const averageScore = criteriaList.length > 0 
-    ? (Object.values(scores).reduce((sum, val) => sum + val, 0) / criteriaList.length) 
+  
+  // Custom grading system: sum of individual criteria points/weights
+  const sumOfWeights = criteriaList.reduce((sum, item) => sum + parseFloat(item.points || 2.0), 0);
+  const rawScore = criteriaList.reduce((sum, item, idx) => {
+    const rating = scores[idx] !== undefined ? scores[idx] : 0;
+    const coef = rating === 2 ? 1.0 : rating === 1 ? 0.5 : 0.0;
+    return sum + (parseFloat(item.points || 2.0) * coef);
+  }, 0);
+
+  // Normalize raw score to be out of maxPossiblePoints (ex: 20)
+  const currentTotalScore = sumOfWeights > 0 
+    ? Math.round(((rawScore / sumOfWeights) * maxPossiblePoints) * 100) / 100 
     : 0;
-  const currentTotalScore = Math.round(averageScore * 100) / 100;
   
   const autoPassed = currentTotalScore >= (maxPossiblePoints / 2);
   const isPassed = autoPassed;
@@ -390,28 +399,42 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
                       </span>
                     )}
                   </div>
-                  <span className="text-sm font-extrabold t-accent">
-                    {scores[idx]} / {maxPossiblePoints} pts
-                  </span>
+                  <div className="text-right">
+                    <span className="text-sm font-extrabold t-accent block">
+                      Score : {scores[idx] !== undefined ? scores[idx] : 0}
+                    </span>
+                    <span className="text-[10px] t-text-secondary">
+                      ({scores[idx] === 2 
+                        ? (item.points || 2.0) 
+                        : scores[idx] === 1 
+                          ? (item.points || 2.0) * 0.5 
+                          : 0} / {item.points || 2.0} pts)
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {Array.from({ length: maxPossiblePoints + 1 }, (_, i) => i).map((val) => {
-                    const isSelected = scores[idx] === val;
+                <div className="flex gap-2 mt-2">
+                  {[
+                    { val: 0, label: "0 (Non fait)", bgGradient: 'linear-gradient(135deg, #EF4444, #B91C1C)' },
+                    { val: 1, label: "1 (Partiel)", bgGradient: 'linear-gradient(135deg, #F59E0B, #B45309)' },
+                    { val: 2, label: "2 (Complet)", bgGradient: 'linear-gradient(135deg, #10B981, #047857)' }
+                  ].map((level) => {
+                    const isSelected = scores[idx] === level.val;
                     return (
                       <button
-                        key={val}
+                        key={level.val}
                         type="button"
-                        onClick={() => handleSelectScore(idx, val)}
-                        className="w-9 h-9 text-xs font-bold rounded-lg border transition duration-150"
+                        onClick={() => handleSelectScore(idx, level.val)}
+                        className="flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition duration-150 flex flex-col items-center justify-center gap-0.5 focus:outline-none"
                         style={{
-                          background: isSelected ? 'linear-gradient(135deg, var(--color-accent), #0E7490)' : 'var(--color-input-bg)',
-                          borderColor: isSelected ? 'var(--color-accent)' : 'var(--color-input-border)',
+                          background: isSelected ? level.bgGradient : 'var(--color-input-bg)',
+                          borderColor: isSelected ? 'transparent' : 'var(--color-input-border)',
                           color: isSelected ? '#fff' : 'var(--color-text-secondary)',
-                          boxShadow: isSelected ? '0 4px 12px rgba(6, 182, 212, 0.3)' : 'none'
+                          boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
                         }}
                       >
-                        {val}
+                        <span className="text-sm font-black">{level.val}</span>
+                        <span className="text-[9px] font-medium opacity-80">{level.label}</span>
                       </button>
                     );
                   })}

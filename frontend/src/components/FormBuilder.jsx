@@ -320,19 +320,21 @@ const FormBuilder = () => {
   const handleAddCriterion = (e) => {
     e.preventDefault();
     if (!newCritText.trim()) return;
+    const pts = parseFloat(newCritPoints) || 2.0;
     setCriteria([
       ...criteria,
-      { id: Date.now(), text: newCritText.trim(), isCritical: newCritCritical }
+      { id: Date.now(), text: newCritText.trim(), points: pts, isCritical: newCritCritical }
     ]);
     setNewCritText('');
+    setNewCritPoints('');
     setNewCritCritical(false);
     setIsFormDirty(true);
   };
 
   // Download example CSV for criteria import
   const handleDownloadCriteriaExample = () => {
-    const headers = "Description du geste;Critique\n";
-    const sample = "Lavage des mains et asepsie;oui\nIdentification correcte du patient;non\nRéalisation de la suture avec technique appropriée;oui\nExplication au patient des suites opératoires;non\nVérification de l'hémostase;ok\n";
+    const headers = "Description du geste;Points;Critique\n";
+    const sample = "Lavage des mains et asepsie;2;oui\nIdentification correcte du patient;3;non\nRéalisation de la suture avec technique appropriée;5;oui\nExplication au patient des suites opératoires;1.5;non\nVérification de l'hémostase;2.5;oui\n";
     const blob = new Blob([headers + sample], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -369,13 +371,16 @@ const FormBuilder = () => {
           const cols = line.split(separator).map(c => c.trim());
 
           const description = cols[0] || '';
-          const critiqueRaw = (cols[1] || '').toLowerCase().trim();
+          const pointsRaw = cols[1] || '2';
+          const critiqueRaw = (cols[2] || '').toLowerCase().trim();
 
           if (description) {
+            const points = parseFloat(pointsRaw.replace(',', '.')) || 2.0;
             const isCritical = ['oui', 'ok', 'yes', 'true', '1'].includes(critiqueRaw);
             importedCriteria.push({
               id: Date.now() + i,
               text: description,
+              points: points,
               isCritical: isCritical
             });
           }
@@ -425,7 +430,11 @@ const FormBuilder = () => {
     let finalPoints = parseFloat(totalPoints);
 
     if (currentStation.type === 'examiner_eval') {
-      compiledCriteria = criteria.map(c => ({ text: c.text, isCritical: c.isCritical }));
+      compiledCriteria = criteria.map(c => ({
+        text: c.text,
+        points: parseFloat(c.points || 2.0),
+        isCritical: c.isCritical
+      }));
       // Use the total_points as the universal scale for all criteria
       finalPoints = parseFloat(totalPoints);
     } else {
@@ -740,7 +749,7 @@ const FormBuilder = () => {
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
                       <h4 className="text-xs font-bold t-text-heading uppercase">Grille Tactile - Critères de notation</h4>
-                      <p className="text-[10px] t-text-secondary">Chaque critère sera noté de <b className="t-accent">0</b> à <b className="t-accent">{totalPoints}</b> par l'examinateur.</p>
+                      <p className="text-[10px] t-text-secondary">Chaque critère aura son propre barème et sera noté sur <b className="t-accent">0 - 1 - 2</b>.</p>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -762,8 +771,8 @@ const FormBuilder = () => {
                     </div>
                   </div>
                   
-                  <div className="flex flex-col sm:flex-row gap-2 p-3.5 rounded-xl items-end border" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
-                    <div className="flex-1 flex flex-col gap-1">
+                  <div className="flex flex-col sm:flex-row gap-3 p-3.5 rounded-xl items-end border" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
+                    <div className="flex-1 flex flex-col gap-1 min-w-[200px]">
                       <label className="text-[9px] t-text-secondary">Description du geste</label>
                       <input 
                         type="text" 
@@ -771,6 +780,19 @@ const FormBuilder = () => {
                         onChange={(e) => setNewCritText(e.target.value)}
                         className="glass-input p-2 rounded-lg text-xs"
                         placeholder="Ex: Réalisation de la suture..."
+                      />
+                    </div>
+                    <div className="w-20 flex flex-col gap-1">
+                      <label className="text-[9px] t-text-secondary">Barème (pts)</label>
+                      <input 
+                        type="number" 
+                        step="0.25"
+                        min="0"
+                        max="20"
+                        placeholder="ex: 2"
+                        value={newCritPoints}
+                        onChange={(e) => setNewCritPoints(e.target.value)}
+                        className="glass-input p-2 rounded-lg text-xs"
                       />
                     </div>
                     <div className="flex items-center gap-1.5 pb-2 text-xs t-text-secondary">
@@ -789,19 +811,33 @@ const FormBuilder = () => {
                     </button>
                   </div>
 
-                  <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
+                  <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1">
                     {criteria.map((c, idx) => (
                       <div key={c.id || idx} className="p-3 border rounded-xl flex items-center justify-between gap-3 text-xs" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
                         <span className="font-medium t-text-heading">
                           {idx + 1}. {c.text} {c.isCritical && <b className="text-rose-500 ml-1">🚨 (Critique)</b>}
                         </span>
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] t-text-secondary">Noté sur {totalPoints}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                            Barème : {c.points || 2} pts
+                          </span>
                           <button type="button" onClick={() => { setCriteria(criteria.filter(cr => cr.id !== c.id)); setIsFormDirty(true); }} className="t-text-muted hover:text-rose-500">❌</button>
                         </div>
                       </div>
                     ))}
                   </div>
+
+                  {criteria.length > 0 && (
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 rounded-xl border text-[11px] gap-2 mt-1"
+                      style={{ background: 'var(--color-bg-alt)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                      <div>
+                        Cumul des barèmes configurés : <strong className="t-accent text-xs">{criteria.reduce((sum, c) => sum + parseFloat(c.points || 0), 0)} pts</strong>
+                      </div>
+                      <div className="text-[10px] t-text-muted italic">
+                        💡 Normalisation automatique sur {totalPoints} pts lors de l'évaluation.
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col gap-4 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
