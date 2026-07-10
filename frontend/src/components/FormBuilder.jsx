@@ -887,19 +887,30 @@ const FormBuilder = () => {
                     })}
                   </div>
 
-                  {criteria.length > 0 && (
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 rounded-xl border text-[11px] gap-2 mt-1"
-                      style={{ background: 'var(--color-bg-alt)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
-                      <div>
-                        Cumul des barèmes (Fait) : <strong className="t-accent text-xs">
-                          {criteria.reduce((sum, c) => sum + parseFloat(c.points_fait !== undefined ? c.points_fait : (c.points || 0)), 0)} pts
-                        </strong>
+                  {criteria.length > 0 && (() => {
+                    const sumOfFait = criteria.reduce((sum, c) => sum + parseFloat(c.points_fait !== undefined ? c.points_fait : (c.points || 0)), 0);
+                    const target = parseFloat(totalPoints) || 20;
+                    const hasDifference = sumOfFait !== target;
+                    return (
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 rounded-xl border text-[11px] gap-2 mt-1"
+                        style={{ background: 'var(--color-bg-alt)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                        <div>
+                          Cumul des barèmes (Fait) :{' '}
+                          <strong 
+                            className={`text-xs ${hasDifference ? 'text-rose-500 animate-pulse font-black' : 't-accent'}`}
+                          >
+                            {sumOfFait} pts
+                          </strong>
+                        </div>
+                        <div className="text-[10px] t-text-muted italic">
+                          {hasDifference 
+                            ? `⚠️ Le cumul (${sumOfFait} pts) est différent du total attendu (${target} pts). Conversion automatique active.`
+                            : `💡 Normalisation automatique sur ${target} pts lors de l'évaluation.`
+                          }
+                        </div>
                       </div>
-                      <div className="text-[10px] t-text-muted italic">
-                        💡 Normalisation automatique sur {totalPoints} pts lors de l'évaluation.
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               ) : (
                 <div className="flex flex-col gap-4 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
