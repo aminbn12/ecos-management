@@ -197,7 +197,7 @@ class AdminController extends Controller
                 // 1. Duplicate Exam
                 $duplicatedExam = Exam::create([
                     'title' => $originalExam->title . ' (Copie)',
-                    'date' => $originalExam->date,
+                    'date' => now()->toDateString(),
                     'status' => 'inactive', // Duplicate is inactive by default
                 ]);
 

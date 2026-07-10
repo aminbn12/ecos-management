@@ -10,7 +10,7 @@ const ExamHistory = () => {
   const [allowDeletion, setAllowDeletion] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterDate, setFilterDate] = useState('');
+  const [dateSortOrder, setDateSortOrder] = useState('desc'); // 'desc' = newest first, 'asc' = oldest first
 
   // View Exam Details State
   const [selectedExam, setSelectedExam] = useState(null);
@@ -322,16 +322,18 @@ const ExamHistory = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 glass-input px-3 py-2 rounded-xl text-xs"
               />
-              <input
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="glass-input px-3 py-2 rounded-xl text-xs sm:w-36"
-                title="Filtrer par date"
-              />
-              {(searchQuery || filterDate) && (
+              <button
+                type="button"
+                onClick={() => setDateSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                className="px-3 py-2 border rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+                title={dateSortOrder === 'desc' ? "Trier par date (les plus récents en premier)" : "Trier par date (les plus anciens en premier)"}
+              >
+                📅 Trier : {dateSortOrder === 'desc' ? 'Récents ⬇️' : 'Anciens ⬆️'}
+              </button>
+              {searchQuery && (
                 <button
-                  onClick={() => { setSearchQuery(''); setFilterDate(''); }}
+                  onClick={() => setSearchQuery('')}
                   className="px-2.5 py-1.5 border rounded-xl text-[10px] font-bold t-text-secondary hover:bg-black/5 dark:hover:bg-white/5 transition"
                   style={{ borderColor: 'var(--color-border)' }}
                 >
@@ -344,18 +346,22 @@ const ExamHistory = () => {
               <div className="text-center py-10 t-text-secondary text-sm">Chargement...</div>
             ) : (() => {
               const filteredExams = exams.filter(exam => {
-                const matchName = exam.title?.toLowerCase().includes(searchQuery.toLowerCase());
-                const matchDate = filterDate ? exam.date === filterDate : true;
-                return matchName && matchDate;
+                return exam.title?.toLowerCase().includes(searchQuery.toLowerCase());
               });
 
-              if (filteredExams.length === 0) {
+              const sortedExams = [...filteredExams].sort((a, b) => {
+                const dateA = new Date(a.date).getTime();
+                const dateB = new Date(b.date).getTime();
+                return dateSortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+              });
+
+              if (sortedExams.length === 0) {
                 return <div className="text-center py-10 t-text-muted text-xs">Aucune session d'examen correspondante.</div>;
               }
 
               return (
                 <div className="flex flex-col gap-3">
-                  {filteredExams.map(exam => {
+                  {sortedExams.map(exam => {
                     const isSelected = selectedExam?.id === exam.id;
                   return (
                     <div
