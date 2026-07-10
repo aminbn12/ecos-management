@@ -869,29 +869,62 @@ class AdminController extends Controller
                     $statusClass = 'jury-alert';
                     $statusText = 'Alerte Jury';
                 }
-                fwrite($output, '<td class="' . $statusClass . '">' . $statusText . '</td>');
-
-                $resultsList = $prog->results;
+                         $resultsList = $prog->results;
                 $totalScore = 0;
-                $steps = array_fill(1, 5, null);
                 
+                $stepResultsGroup = array_fill(1, 5, []);
                 foreach ($resultsList as $res) {
                     $totalScore += $res->score;
                     $stepNum = $res->station->step_number ?? 1;
                     if ($stepNum >= 1 && $stepNum <= 5) {
-                        $steps[$stepNum] = $res;
+                        $stepResultsGroup[$stepNum][] = $res;
                     }
                 }
+                
                 $avg = count($resultsList) > 0 ? round($totalScore / count($resultsList), 2) : 0;
                 
                 fwrite($output, '<td class="text-center font-bold">' . $avg . ' / 20</td>');
 
                 for ($stepNum = 1; $stepNum <= 5; $stepNum++) {
-                    $res = $steps[$stepNum];
+                    $group = $stepResultsGroup[$stepNum];
+                    $res = null;
+                    $hasReserve = false;
+                    
+                    foreach ($group as $r) {
+                        if ($r->station && $r->station->is_reserve) {
+                            $res = $r;
+                            $hasReserve = true;
+                            break;
+                        }
+                    }
+                    if (!$res && count($group) > 0) {
+                        $res = $group[0];
+                    }
+
                     if ($res) {
+                        $decisionText = '';
+                        $decisionClass = '';
+                        if ($hasReserve) {
+                            if ($res->passed) {
+                                $decisionText = 'Admis après rattrapage';
+                                $decisionClass = 'admis';
+                            } else {
+                                $decisionText = 'Non validé';
+                                $decisionClass = 'ajourne';
+                            }
+                        } else {
+                            if ($res->passed) {
+                                $decisionText = 'Admis';
+                                $decisionClass = 'admis';
+                            } else {
+                                $decisionText = 'Non validé';
+                                $decisionClass = 'ajourne';
+                            }
+                        }
+
                         fwrite($output, '<td>' . htmlspecialchars($res->station->name) . '</td>');
                         fwrite($output, '<td class="text-center font-bold">' . $res->score . '</td>');
-                        fwrite($output, '<td class="' . ($res->passed ? 'admis' : 'ajourne') . '">' . ($res->passed ? 'Admis' : 'Ajourné') . '</td>');
+                        fwrite($output, '<td class="' . $decisionClass . '">' . htmlspecialchars($decisionText) . '</td>');
                         fwrite($output, '<td class="text-center">' . htmlspecialchars($formatDuration($res->duration)) . '</td>');
                         fwrite($output, '<td>' . htmlspecialchars($res->examiner->name ?? 'Système') . '</td>');
                     } else {
