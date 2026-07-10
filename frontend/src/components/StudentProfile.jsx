@@ -76,9 +76,15 @@ const StudentProfile = () => {
     try {
       const response = await axios.get('/api/student/profile');
       setProfileData(response.data);
+      
+      const inProgress = response.data.progression?.status === 'in_progress';
+      localStorage.setItem('student_exam_in_progress', inProgress ? 'true' : 'false');
+      window.dispatchEvent(new CustomEvent('student-status-changed', {
+        detail: { inProgress }
+      }));
     } catch (err) {
       console.warn("Backend student profile offline, loading mock simulation profile.");
-      setProfileData({
+      const mockData = {
         user: { name: "Yassine Filali", email: "yassine.filali@student.um6ss.ma" },
         student_profile: { matricule: "DENT-2026-042", level: "5" },
         progression: {
@@ -93,7 +99,14 @@ const StudentProfile = () => {
         show_average: true,
         average_score: 14.5,
         is_next_station_occupied: (Math.floor(Date.now() / 12000) % 2 === 0) // Toggles every 12 seconds in demo
-      });
+      };
+      setProfileData(mockData);
+
+      const inProgress = mockData.progression?.status === 'in_progress';
+      localStorage.setItem('student_exam_in_progress', inProgress ? 'true' : 'false');
+      window.dispatchEvent(new CustomEvent('student-status-changed', {
+        detail: { inProgress }
+      }));
     } finally {
       setLoading(false);
     }
@@ -221,10 +234,17 @@ const StudentProfile = () => {
         )}
 
         {progression?.status === 'completed' ? (
-          <div className="p-3 rounded-xl text-xs font-semibold text-center font-bold"
-            style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)' }}>
-            🎉 Félicitations ! Vous avez validé toutes les étapes de cet examen.
-          </div>
+          profileData?.show_average ? (
+            <div className="p-3 rounded-xl text-xs font-semibold text-center font-bold"
+              style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)' }}>
+              🎉 Félicitations ! Vous avez validé toutes les étapes de cet examen.
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-xl text-xs text-center font-bold border"
+              style={{ background: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
+              Examen terminé.
+            </div>
+          )
         ) : progression?.current_station ? (
           <div className="flex flex-col gap-3">
             {/* Warning if redirected to a reserve station */}

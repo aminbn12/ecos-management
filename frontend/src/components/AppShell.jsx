@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -50,6 +50,20 @@ const AppShell = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  const [examInProgress, setExamInProgress] = useState(() => {
+    return localStorage.getItem('student_exam_in_progress') === 'true';
+  });
+
+  useEffect(() => {
+    const handleStatus = (e) => {
+      const inProgress = !!e.detail?.inProgress;
+      setExamInProgress(inProgress);
+      localStorage.setItem('student_exam_in_progress', inProgress ? 'true' : 'false');
+    };
+    window.addEventListener('student-status-changed', handleStatus);
+    return () => window.removeEventListener('student-status-changed', handleStatus);
+  }, []);
+
   const config = roleConfig[user?.role] || roleConfig.student;
 
   const closeSidebar = () => setSidebarOpen(false);
@@ -87,23 +101,8 @@ const AppShell = ({ children }) => {
           </div>
         </div>
 
-        {/* Right: Notification + Theme + Profile + Logout */}
+        {/* Right: Theme + Profile + Logout */}
         <div className="flex items-center gap-2 md:gap-3">
-          {/* Notifications */}
-          <button
-            className="w-9 h-9 rounded-xl flex items-center justify-center relative"
-            style={{ border: '1px solid var(--color-card-border)', background: 'var(--color-surface)' }}
-            title="Notifications"
-          >
-            <span className="text-base">🔔</span>
-            <span
-              className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
-              style={{ background: 'var(--color-danger)' }}
-            >
-              3
-            </span>
-          </button>
-
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
@@ -132,18 +131,22 @@ const AppShell = ({ children }) => {
             </div>
           </div>
 
-          <div className="hidden sm:block h-6 w-[1px]" style={{ background: 'var(--color-border)' }}></div>
+          {(!user || user.role !== 'student' || !examInProgress) && (
+            <>
+              <div className="hidden sm:block h-6 w-[1px]" style={{ background: 'var(--color-border)' }}></div>
 
-          {/* Logout Button */}
-          <button
-            onClick={logout}
-            className="h-9 px-3 rounded-xl flex items-center gap-1.5 text-xs font-bold transition-all duration-150"
-            style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid transparent' }}
-            title="Déconnexion"
-          >
-            <span>🚪</span>
-            <span className="hidden sm:inline">Déconnexion</span>
-          </button>
+              {/* Logout Button */}
+              <button
+                onClick={logout}
+                className="h-9 px-3 rounded-xl flex items-center gap-1.5 text-xs font-bold transition-all duration-150"
+                style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid transparent' }}
+                title="Déconnexion"
+              >
+                <span>🚪</span>
+                <span className="hidden sm:inline">Déconnexion</span>
+              </button>
+            </>
+          )}
         </div>
       </nav>
 
