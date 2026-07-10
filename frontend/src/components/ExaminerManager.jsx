@@ -14,7 +14,6 @@ const ExaminerManager = () => {
   const [password, setPassword] = useState('');
   const [title, setTitle] = useState('Dr');
   const [gender, setGender] = useState('male');
-  const [age, setAge] = useState('');
   const [specialty, setSpecialty] = useState('');
 
   // Mock examiners for demo
@@ -46,7 +45,6 @@ const ExaminerManager = () => {
     setPassword('');
     setTitle('Dr');
     setGender('male');
-    setAge('');
     setSpecialty('');
     setFormMode('create');
     setEditingId(null);
@@ -58,7 +56,6 @@ const ExaminerManager = () => {
     setPassword('');
     setTitle(ex.title || 'Dr');
     setGender(ex.gender || 'male');
-    setAge(ex.age ? String(ex.age) : '');
     setSpecialty(ex.specialty || '');
     setFormMode('edit');
     setEditingId(ex.id);
@@ -89,7 +86,6 @@ const ExaminerManager = () => {
       email: email.trim(),
       title,
       gender,
-      age: age ? parseInt(age) : null,
       specialty: specialty.trim(),
     };
 
@@ -213,32 +209,16 @@ const ExaminerManager = () => {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* Age */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] t-text-secondary font-semibold uppercase">Âge</label>
-                  <input
-                    type="number"
-                    min="25"
-                    max="80"
-                    placeholder="Ex: 42"
-                    value={age}
-                    onChange={(e) => setAge(e.target.value)}
-                    className="glass-input p-2.5 rounded-xl text-xs"
-                  />
-                </div>
-
-                {/* Specialty */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] t-text-secondary font-semibold uppercase">Spécialité</label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Endodontie"
-                    value={specialty}
-                    onChange={(e) => setSpecialty(e.target.value)}
-                    className="glass-input p-2.5 rounded-xl text-xs"
-                  />
-                </div>
+              {/* Specialty */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] t-text-secondary font-semibold uppercase">Spécialité</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Endodontie"
+                  value={specialty}
+                  onChange={(e) => setSpecialty(e.target.value)}
+                  className="glass-input p-2.5 rounded-xl text-sm"
+                />
               </div>
 
               {/* Submit */}
@@ -309,11 +289,7 @@ const ExaminerManager = () => {
                                 {ex.specialty}
                               </span>
                             )}
-                            {ex.age && (
-                              <span className="text-[9px] px-2 py-0.5 rounded font-bold t-text-muted" style={{ background: 'var(--color-bg-alt)' }}>
-                                {ex.age} ans
-                              </span>
-                            )}
+                            {/* Age removed */}
                             <span className="text-[9px] px-2 py-0.5 rounded font-bold" style={{ background: ex.gender === 'female' ? 'rgba(236, 72, 153, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: ex.gender === 'female' ? '#DB2777' : '#3B82F6' }}>
                               {ex.gender === 'female' ? '♀ Féminin' : '♂ Masculin'}
                             </span>
