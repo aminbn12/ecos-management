@@ -814,6 +814,7 @@ class AdminController extends Controller
                 .meta-label { font-weight: bold; color: #475569; }
                 .admis { background-color: #DCFCE7; color: #15803D; font-weight: bold; text-align: center; }
                 .ajourne { background-color: #FEE2E2; color: #B91C1C; font-weight: bold; text-align: center; }
+                .rattrapage { background-color: #FFEDD5; color: #EA580C; font-weight: bold; text-align: center; }
                 .jury-alert { background-color: #FEF3C7; color: #D97706; font-weight: bold; text-align: center; }
                 .text-center { text-align: center; }
                 .font-bold { font-weight: bold; }
@@ -869,7 +870,9 @@ class AdminController extends Controller
                     $statusClass = 'jury-alert';
                     $statusText = 'Alerte Jury';
                 }
-                         $resultsList = $prog->results;
+                fwrite($output, '<td class="' . $statusClass . '">' . $statusText . '</td>');
+
+                $resultsList = $prog->results;
                 $totalScore = 0;
                 
                 $stepResultsGroup = array_fill(1, 5, []);
@@ -907,7 +910,7 @@ class AdminController extends Controller
                         if ($hasReserve) {
                             if ($res->passed) {
                                 $decisionText = 'Admis après rattrapage';
-                                $decisionClass = 'admis';
+                                $decisionClass = 'rattrapage';
                             } else {
                                 $decisionText = 'Non validé';
                                 $decisionClass = 'ajourne';
