@@ -325,6 +325,13 @@ const FormBuilder = () => {
     const ptsFait = parseFloat(newCritPointsFait) || 2.0;
     const ptsPartiel = newCritPointsPartiel !== '' ? parseFloat(newCritPointsPartiel) : ptsFait * 0.5;
     const ptsNonFait = parseFloat(newCritPointsNonFait) || 0;
+
+    const sumOfFait = criteria.reduce((sum, c) => sum + parseFloat(c.points_fait !== undefined ? c.points_fait : (c.points || 0)), 0);
+    const target = parseFloat(totalPoints) || 20;
+    if (sumOfFait + ptsFait > target) {
+      setStatus({ type: 'error', message: `Impossible d'ajouter ce geste : le cumul dépasserait la limite de ${target} pts.` });
+      return;
+    }
     
     setCriteria([
       ...criteria,
@@ -380,6 +387,9 @@ const FormBuilder = () => {
           return;
         }
 
+        let currentSum = criteria.reduce((sum, c) => sum + parseFloat(c.points_fait !== undefined ? c.points_fait : (c.points || 0)), 0);
+        const target = parseFloat(totalPoints) || 20;
+
         const importedCriteria = [];
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
@@ -400,6 +410,15 @@ const FormBuilder = () => {
             const ptsPartiel = ptsPartielRaw !== '' ? parseFloat(ptsPartielRaw.replace(',', '.')) : ptsFait * 0.5;
             const ptsNonFait = parseFloat(ptsNonFaitRaw.replace(',', '.')) || 0;
             const isCritical = ['oui', 'ok', 'yes', 'true', '1'].includes(critiqueRaw);
+            
+            if (currentSum + ptsFait > target) {
+              setStatus({ 
+                type: 'error', 
+                message: `Importation interrompue : le cumul dépasserait la limite de ${target} pts (Geste bloqué : "${description}").` 
+              });
+              return;
+            }
+            currentSum += ptsFait;
             
             importedCriteria.push({
               id: Date.now() + i,
@@ -501,6 +520,10 @@ const FormBuilder = () => {
       setIsFormDirty(false);
     }
   };
+
+  const sumOfFait = criteria.reduce((sum, c) => sum + parseFloat(c.points_fait !== undefined ? c.points_fait : (c.points || 0)), 0);
+  const targetPoints = parseFloat(totalPoints) || 20;
+  const isLimitReached = sumOfFait >= targetPoints;
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto flex flex-col gap-6 animate-fade-in" style={{ minHeight: 'calc(100vh - 60px)' }}>
@@ -806,9 +829,15 @@ const FormBuilder = () => {
                         type="text" 
                         value={newCritText}
                         onChange={(e) => setNewCritText(e.target.value)}
-                        className="glass-input p-2 rounded-lg text-xs"
+                        className="glass-input p-2 rounded-lg text-xs w-full"
                         placeholder="Ex: Réalisation de la suture..."
+                        disabled={isLimitReached}
                       />
+                      {isLimitReached && (
+                        <span className="text-[9px] text-rose-500 font-bold block leading-tight mt-0.5 animate-pulse">
+                          ⚠️ Impossible d'ajouter un geste : cumul des barèmes de {targetPoints} pts déjà atteint.
+                        </span>
+                      )}
                     </div>
                     
                     <div className="flex gap-2">
@@ -821,6 +850,7 @@ const FormBuilder = () => {
                           placeholder="0"
                           value={newCritPointsNonFait}
                           onChange={(e) => setNewCritPointsNonFait(e.target.value)}
+                          disabled={isLimitReached}
                           className="glass-input p-2 rounded-lg text-xs"
                         />
                       </div>
@@ -833,6 +863,7 @@ const FormBuilder = () => {
                           placeholder="ex: 1.5"
                           value={newCritPointsPartiel}
                           onChange={(e) => setNewCritPointsPartiel(e.target.value)}
+                          disabled={isLimitReached}
                           className="glass-input p-2 rounded-lg text-xs"
                         />
                       </div>
@@ -845,6 +876,7 @@ const FormBuilder = () => {
                           placeholder="ex: 3"
                           value={newCritPointsFait}
                           onChange={(e) => setNewCritPointsFait(e.target.value)}
+                          disabled={isLimitReached}
                           className="glass-input p-2 rounded-lg text-xs"
                         />
                       </div>
@@ -856,12 +888,19 @@ const FormBuilder = () => {
                         id="crit_critical"
                         checked={newCritCritical}
                         onChange={(e) => setNewCritCritical(e.target.checked)}
+                        disabled={isLimitReached}
                         className="w-4 h-4 rounded"
                         style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
                       />
                       <label htmlFor="crit_critical">Critique 🚨</label>
                     </div>
-                    <button type="button" onClick={handleAddCriterion} className="px-4 py-2 text-white font-bold rounded-lg text-xs" style={{ background: 'var(--color-accent)' }}>
+                    <button 
+                      type="button" 
+                      onClick={handleAddCriterion} 
+                      disabled={isLimitReached} 
+                      className={`px-4 py-2 text-white font-bold rounded-lg text-xs transition ${isLimitReached ? 'opacity-40 cursor-not-allowed' : ''}`}
+                      style={{ background: isLimitReached ? '#6B7280' : 'var(--color-accent)' }}
+                    >
                       Ajouter
                     </button>
                   </div>
