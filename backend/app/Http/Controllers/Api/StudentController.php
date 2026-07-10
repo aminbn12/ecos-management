@@ -39,6 +39,14 @@ class StudentController extends Controller
             $averageScore = round($total / count($progression->results), 2);
         }
 
+        $isOccupied = false;
+        if ($progression && $progression->current_station_id && $progression->scanned_at === null) {
+            $isOccupied = ExamProgression::where('current_station_id', $progression->current_station_id)
+                ->where('id', '!=', $progression->id)
+                ->whereNotNull('scanned_at')
+                ->exists();
+        }
+
         return response()->json([
             'user' => [
                 'id' => $user->id,
@@ -49,6 +57,7 @@ class StudentController extends Controller
             'progression' => $progression,
             'show_average' => $showAverage,
             'average_score' => $averageScore,
+            'is_next_station_occupied' => $isOccupied,
         ]);
     }
 

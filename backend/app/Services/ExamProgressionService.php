@@ -83,7 +83,7 @@ class ExamProgressionService
 
             if ($passed) {
                 // Success: Move to step N + 1 (Initial)
-                $nextStep = $currentStep + 1;
+                $nextStep = ($currentStep == 5) ? 1 : $currentStep + 1;
                 $nextIsReserve = false;
             } else {
                 // Failure:
@@ -93,15 +93,33 @@ class ExamProgressionService
                     $nextIsReserve = true;
                 } else {
                     // Reserve failed -> Go to step N + 1 (Initial) AND flag for jury review
-                    $nextStep = $currentStep + 1;
+                    $nextStep = ($currentStep == 5) ? 1 : $currentStep + 1;
                     $nextIsReserve = false;
                     $progression->requires_jury_decision = true;
                 }
             }
 
             // 4. Update the progression state
-            if ($nextStep > 5) {
-                // The candidate completed all steps (1 to 5)
+            // A step N is resolved if the candidate either passes the initial station,
+            // or attempts the reserve station (whether pass or fail).
+            $results = $progression->results()->with('station')->get();
+            $resolvedSteps = 0;
+            for ($i = 1; $i <= 5; $i++) {
+                $stepResults = $results->filter(function($r) use ($i) {
+                    return $r->station && $r->station->step_number === $i;
+                });
+                if ($stepResults->isEmpty()) {
+                    continue;
+                }
+                $hasPass = $stepResults->contains('passed', true);
+                $hasReserve = $stepResults->contains('station.is_reserve', true);
+                if ($hasPass || $hasReserve) {
+                    $resolvedSteps++;
+                }
+            }
+
+            if ($resolvedSteps >= 5) {
+                // The candidate completed all 5 steps (in any order)
                 $progression->status = 'completed';
                 $progression->current_station_id = null;
             } else {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
@@ -26,6 +26,52 @@ const StudentProfile = () => {
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(null);
 
+  const prevOccupiedRef = useRef(false);
+
+  const playNotificationChime = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Note 1: D5
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+      gain1.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+      osc1.start();
+      osc1.stop(audioCtx.currentTime + 0.4);
+
+      // Note 2: A5
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15);
+      gain2.gain.setValueAtTime(0.08, audioCtx.currentTime + 0.15);
+      gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.65);
+      osc2.start(audioCtx.currentTime + 0.15);
+      osc2.stop(audioCtx.currentTime + 0.65);
+    } catch (e) {
+      console.warn("AudioContext failed or blocked:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (profileData?.progression?.status !== 'in_progress') return;
+    const isScanned = profileData.progression.scanned_at !== null;
+    if (isScanned) {
+      prevOccupiedRef.current = false;
+      return;
+    }
+    const currentlyOccupied = !!profileData.is_next_station_occupied;
+    if (prevOccupiedRef.current === true && currentlyOccupied === false) {
+      playNotificationChime();
+    }
+    prevOccupiedRef.current = currentlyOccupied;
+  }, [profileData]);
+
   const fetchProfile = async () => {
     try {
       const response = await axios.get('/api/student/profile');
@@ -38,14 +84,15 @@ const StudentProfile = () => {
         progression: {
           status: 'in_progress',
           requires_jury_decision: false,
-          scanned_at: new Date(Date.now() - 45000).toISOString(), // scanned 45 seconds ago
+          scanned_at: null, // Set to null so the transition card displays in demo
           current_station: { name: "Anesthésie Locale", step_number: 2, is_reserve: false },
           results: [
             { score: 14.5, passed: true, station: { name: "Diagnostic Radiologique", step_number: 1 } }
           ]
         },
         show_average: true,
-        average_score: 14.5
+        average_score: 14.5,
+        is_next_station_occupied: (Math.floor(Date.now() / 12000) % 2 === 0) // Toggles every 12 seconds in demo
       });
     } finally {
       setLoading(false);
@@ -205,9 +252,29 @@ const StudentProfile = () => {
                 <span className="text-xs font-bold t-accent">Étape {progression.current_station.step_number}</span>
               </div>
             </div>
-            <p className="text-[11px] t-text-secondary leading-relaxed text-center">
-              Veuillez vous diriger calmement vers la salle correspondante et attendre l'autorisation de l'examinateur avant d'entrer.
-            </p>
+            {progression.scanned_at ? (
+              <p className="text-[11px] t-text-secondary leading-relaxed text-center">
+                Épreuve en cours. Effectuez vos gestes cliniques devant l'examinateur.
+              </p>
+            ) : profileData?.is_next_station_occupied ? (
+              <div className="p-4 rounded-xl border text-center animate-pulse flex flex-col gap-1.5"
+                style={{ background: 'var(--color-warning-bg)', color: 'var(--color-warning)', borderColor: 'var(--color-warning)' }}>
+                <span className="text-xs font-black uppercase tracking-widest">🛑 Salle Occupée</span>
+                <p className="text-xs font-bold leading-relaxed">
+                  Votre collègue termine son épreuve. Veuillez patienter devant la porte de la salle en silence.
+                </p>
+                <span className="text-[10px] opacity-80">Un signal sonore retentira dès qu'elle sera libre.</span>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl border text-center flex flex-col gap-1.5 animate-scale-up"
+                style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', borderColor: 'var(--color-success)' }}>
+                <span className="text-xs font-black uppercase tracking-widest">🟢 Salle Disponible</span>
+                <p className="text-xs font-bold leading-relaxed">
+                  La salle est libre ! Vous pouvez entrer et présenter votre QR Code à l'examinateur.
+                </p>
+                <span className="text-[10px] opacity-80">Préparez-vous à entrer immédiatement.</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="p-3 rounded-xl text-xs font-semibold text-center font-bold"
