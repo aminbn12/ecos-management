@@ -237,6 +237,12 @@ const ScannerKiosk = ({ onScanSuccess }) => {
       
       onScanSuccess(response.data);
     } catch (err) {
+      if (err.response) {
+        setLoading(false);
+        setErrorMsg(err.response.data.message || "Erreur de validation lors du scan.");
+        return;
+      }
+
       console.warn("Backend scanning offline, running demo mock simulation...", err);
       
       setTimeout(() => {
