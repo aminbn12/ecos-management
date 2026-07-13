@@ -174,6 +174,38 @@ class ExaminerController extends Controller
     }
 
     /**
+     * Cancel scan for a student progression (reset scanned_at to null).
+     */
+    public function cancelScan(Request $request)
+    {
+        $request->validate([
+            'matricule' => 'required|string',
+            'station_id' => 'required|exists:stations,id',
+        ]);
+
+        $student = StudentProfile::where('matricule', $request->matricule)->first();
+        if (!$student) {
+            return response()->json(['message' => 'Étudiant introuvable.'], 404);
+        }
+
+        $station = Station::find($request->station_id);
+
+        $progression = ExamProgression::where('student_id', $student->id)
+            ->where('exam_id', $station->exam_id)
+            ->first();
+
+        if ($progression) {
+            $progression->scanned_at = null;
+            $progression->timer_started_at = null;
+            $progression->save();
+        }
+
+        return response()->json([
+            'message' => 'Scan annulé avec succès.',
+        ]);
+    }
+
+    /**
      * Submit examiner evaluation for a student.
      * Triggers progression transitions.
      */

@@ -72,6 +72,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware(CheckRole::class . ':admin_examiner,super_admin')->group(function () {
         Route::post('/examiner/scan', [ExaminerController::class, 'scan']);
         Route::post('/examiner/start-timer', [ExaminerController::class, 'startTimer']);
+        Route::post('/examiner/cancel-scan', [ExaminerController::class, 'cancelScan']);
     });
     Route::post('/examiner/submit', [ExaminerController::class, 'submit'])
         ->middleware(CheckRole::class . ':admin_examiner,super_admin,student');

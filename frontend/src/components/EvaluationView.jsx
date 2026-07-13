@@ -110,13 +110,23 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
     };
   }, [submitStatus]);
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     const hasScores = Object.values(scores).some(v => v > 0) || remarks.trim().length > 0;
     if (timerStarted || hasScores) {
       if (!window.confirm("Êtes-vous sûr de vouloir annuler cette évaluation ? Tous les scores saisis seront perdus.")) {
         return;
       }
     }
+    
+    try {
+      await axios.post('/api/examiner/cancel-scan', {
+        matricule: student.matricule,
+        station_id: station.id
+      });
+    } catch (err) {
+      console.warn("Failed to cancel scan on backend:", err);
+    }
+
     localStorage.removeItem(storageScoresKey);
     localStorage.removeItem(storageRemarksKey);
     localStorage.removeItem(storageTimerStartedKey);
