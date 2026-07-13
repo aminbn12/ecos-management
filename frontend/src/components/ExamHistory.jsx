@@ -687,12 +687,38 @@ const ExamHistory = () => {
                           <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl flex flex-col gap-2 mt-1">
                             <span className="text-[9px] font-extrabold uppercase t-text-secondary">Détails des points :</span>
                             <div className="flex flex-col gap-1.5 text-[10px]">
-                              {res.details.map((d, dIdx) => (
-                                <div key={dIdx} className="flex justify-between items-start gap-3">
-                                  <span className="t-text-heading font-medium">{d.criterion || d.text}</span>
-                                  <span className="font-bold flex-shrink-0 t-accent">{d.points_awarded || d.score || 0} / {d.points_max || d.points || 0}</span>
-                                </div>
-                              ))}
+                              {res.details.map((d, dIdx) => {
+                                const pointsAwarded = d.points_awarded !== undefined ? d.points_awarded : (d.score !== undefined ? d.score : 0);
+                                const pointsMax = d.points_max !== undefined ? d.points_max : (d.points !== undefined ? d.points : 0);
+                                
+                                // Detect if it uses the 3-level scale (since all points_awarded in examiner_eval are 0, 1, or 2)
+                                const isThreeLevelScale = pointsMax === 20 && (pointsAwarded === 0 || pointsAwarded === 1 || pointsAwarded === 2);
+                                
+                                // Look up the actual points from the evaluation form criteria
+                                let displayValue = pointsAwarded;
+                                if (isThreeLevelScale && res.station?.evaluation_form?.criteria) {
+                                  const criteriaList = res.station.evaluation_form.criteria;
+                                  if (Array.isArray(criteriaList)) {
+                                    const matched = criteriaList.find(c => (c.text || c.criterion) === d.criterion);
+                                    if (matched) {
+                                      const ptsFait = matched.points_fait !== undefined ? parseFloat(matched.points_fait) : parseFloat(matched.points || 2.0);
+                                      const ptsPartiel = matched.points_partiel !== undefined ? parseFloat(matched.points_partiel) : ptsFait * 0.5;
+                                      const ptsNonFait = matched.points_non_fait !== undefined ? parseFloat(matched.points_non_fait) : 0;
+                                      
+                                      displayValue = pointsAwarded === 2 ? ptsFait : (pointsAwarded === 1 ? ptsPartiel : ptsNonFait);
+                                    }
+                                  }
+                                }
+
+                                return (
+                                  <div key={dIdx} className="flex justify-between items-center gap-3">
+                                    <span className="t-text-heading font-medium">{d.criterion || d.text}</span>
+                                    <span className="font-bold flex-shrink-0 t-accent">
+                                      {isThreeLevelScale ? `${displayValue} pt${displayValue > 1 ? 's' : ''}` : `${pointsAwarded} / ${pointsMax}`}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}

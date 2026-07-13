@@ -121,15 +121,15 @@ const StudentProfile = () => {
 
   // Station Timer sync logic
   useEffect(() => {
-    if (!profileData?.progression?.scanned_at || profileData.progression.status !== 'in_progress') {
+    if (!profileData?.progression?.timer_started_at || profileData.progression.status !== 'in_progress') {
       setTimeLeft(null);
       return;
     }
 
     const calculateTimeLeft = () => {
-      const scannedTime = new Date(profileData.progression.scanned_at).getTime();
+      const startTime = new Date(profileData.progression.timer_started_at).getTime();
       const nowTime = new Date().getTime();
-      const elapsed = Math.floor((nowTime - scannedTime) / 1000);
+      const elapsed = Math.floor((nowTime - startTime) / 1000);
       const remaining = 300 - elapsed; // 5 minutes limit
       return remaining > 0 ? remaining : 0;
     };
@@ -282,10 +282,18 @@ const StudentProfile = () => {
                 <span className="text-xs font-bold t-accent">Étape {progression.current_station.step_number}</span>
               </div>
             </div>
-            {progression.scanned_at ? (
+            {progression.timer_started_at ? (
               <p className="text-[11px] t-text-secondary leading-relaxed text-center">
                 Épreuve en cours. Effectuez vos gestes cliniques devant l'examinateur.
               </p>
+            ) : progression.scanned_at ? (
+              <div className="p-4 rounded-xl border text-center animate-pulse flex flex-col gap-1.5"
+                style={{ background: 'var(--color-warning-bg)', color: 'var(--color-warning)', borderColor: 'var(--color-warning)' }}>
+                <span className="text-xs font-black uppercase tracking-widest">⚠️ Scanné - Attente Démarrage</span>
+                <p className="text-xs font-bold leading-relaxed">
+                  Votre scan a été enregistré. Veuillez patienter pendant que l'examinateur lance l'épreuve.
+                </p>
+              </div>
             ) : profileData?.is_next_station_occupied ? (
               <div className="p-4 rounded-xl border text-center animate-pulse flex flex-col gap-1.5"
                 style={{ background: 'var(--color-warning-bg)', color: 'var(--color-warning)', borderColor: 'var(--color-warning)' }}>

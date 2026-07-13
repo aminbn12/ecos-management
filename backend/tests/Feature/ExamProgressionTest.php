@@ -25,11 +25,57 @@ class ExamProgressionTest extends TestCase
         // 1. Seed database using the DatabaseSeeder
         $this->seed(\Database\Seeders\DatabaseSeeder::class);
 
-        // 2. Resolve the ExamProgressionService
-        $this->progressionService = app(ExamProgressionService::class);
+        // 2. Create an examiner User
+        $this->examiner = User::create([
+            'name' => 'Dr. Examiner',
+            'email' => 'examiner@um6ss.ma',
+            'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            'role' => 'admin_examiner',
+        ]);
 
-        // 3. Get a seeded examiner for test executions
-        $this->examiner = User::where('role', 'admin_examiner')->first();
+        // 3. Create a student User and StudentProfile
+        $studentUser = User::create([
+            'name' => 'Amina Laroui',
+            'email' => 'amina@um6ss.ma',
+            'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            'role' => 'student',
+        ]);
+        StudentProfile::create([
+            'user_id' => $studentUser->id,
+            'matricule' => '200200',
+            'level' => '5',
+        ]);
+
+        // 4. Create an Exam
+        $exam = Exam::create([
+            'title' => 'Examen Pratique Dentaire',
+            'date' => now()->toDateString(),
+            'status' => 'active',
+        ]);
+
+        // 5. Create Initial & Reserve Stations for Steps 1 to 5
+        for ($i = 1; $i <= 5; $i++) {
+            Station::create([
+                'exam_id' => $exam->id,
+                'name' => "Station {$i} Initial",
+                'step_number' => $i,
+                'is_reserve' => false,
+                'type' => 'examiner_eval',
+                'examiner_id' => $this->examiner->id,
+            ]);
+
+            Station::create([
+                'exam_id' => $exam->id,
+                'name' => "Station {$i} Reserve",
+                'step_number' => $i,
+                'is_reserve' => true,
+                'type' => 'examiner_eval',
+                'examiner_id' => $this->examiner->id,
+            ]);
+        }
+
+        // 6. Resolve the ExamProgressionService
+        $this->progressionService = app(ExamProgressionService::class);
     }
 
     /**
@@ -154,6 +200,19 @@ class ExamProgressionTest extends TestCase
             'requires_jury_decision' => false,
         ]);
 
+        // Resolve steps 1, 2, 3, 4 first
+        for ($i = 1; $i <= 4; $i++) {
+            $station = Station::where('step_number', $i)->where('is_reserve', false)->first();
+            \App\Models\EvaluationResult::create([
+                'exam_progression_id' => $progression->id,
+                'station_id' => $station->id,
+                'examiner_id' => $this->examiner->id,
+                'score' => 15.0,
+                'passed' => true,
+                'duration' => 120,
+            ]);
+        }
+
         // Run the service processing a PASS
         $progression = $this->progressionService->processResult($student, $station5, true, 18.0, $this->examiner);
 
@@ -181,6 +240,19 @@ class ExamProgressionTest extends TestCase
             'status' => 'in_progress',
             'requires_jury_decision' => false,
         ]);
+
+        // Resolve steps 1, 2, 3, 4 first
+        for ($i = 1; $i <= 4; $i++) {
+            $station = Station::where('step_number', $i)->where('is_reserve', false)->first();
+            \App\Models\EvaluationResult::create([
+                'exam_progression_id' => $progression->id,
+                'station_id' => $station->id,
+                'examiner_id' => $this->examiner->id,
+                'score' => 15.0,
+                'passed' => true,
+                'duration' => 120,
+            ]);
+        }
 
         // Run the service processing a FAIL
         $progression = $this->progressionService->processResult($student, $station5Reserve, false, 9.0, $this->examiner);

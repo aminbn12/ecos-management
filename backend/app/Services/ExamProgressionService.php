@@ -103,7 +103,7 @@ class ExamProgressionService
             // A step N is resolved if the candidate either passes the initial station,
             // or attempts the reserve station (whether pass or fail).
             $results = $progression->results()->with('station')->get();
-            $resolvedSteps = 0;
+            $resolvedStepsList = [];
             for ($i = 1; $i <= 5; $i++) {
                 $stepResults = $results->filter(function($r) use ($i) {
                     return $r->station && $r->station->step_number === $i;
@@ -114,15 +114,27 @@ class ExamProgressionService
                 $hasPass = $stepResults->contains('passed', true);
                 $hasReserve = $stepResults->contains('station.is_reserve', true);
                 if ($hasPass || $hasReserve) {
-                    $resolvedSteps++;
+                    $resolvedStepsList[] = $i;
                 }
             }
+
+            $resolvedSteps = count($resolvedStepsList);
 
             if ($resolvedSteps >= 5) {
                 // The candidate completed all 5 steps (in any order)
                 $progression->status = 'completed';
                 $progression->current_station_id = null;
             } else {
+                // If the next step is already completed, find the next unresolved step (wrapping around).
+                // We only do this if going to an Initial station (not Reserve).
+                if (!$nextIsReserve) {
+                    $attempts = 0;
+                    while (in_array($nextStep, $resolvedStepsList) && $attempts < 5) {
+                        $nextStep = ($nextStep == 5) ? 1 : $nextStep + 1;
+                        $attempts++;
+                    }
+                }
+
                 // Find the next station matching the transition logic
                 $nextStation = Station::where('exam_id', $station->exam_id)
                     ->where('step_number', $nextStep)

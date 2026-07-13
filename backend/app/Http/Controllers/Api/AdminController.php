@@ -733,7 +733,7 @@ class AdminController extends Controller
     {
         $exam = Exam::findOrFail($id);
         $progressions = ExamProgression::where('exam_id', $id)
-            ->with(['student.user', 'results.station', 'results.examiner'])
+            ->with(['student.user', 'results.station.evaluationForm', 'results.examiner'])
             ->get();
 
         return response()->json([

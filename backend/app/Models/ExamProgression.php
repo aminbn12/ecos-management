@@ -13,11 +13,13 @@ class ExamProgression extends Model
         'status',
         'requires_jury_decision',
         'scanned_at',
+        'timer_started_at',
     ];
 
     protected $casts = [
         'requires_jury_decision' => 'boolean',
         'scanned_at' => 'datetime',
+        'timer_started_at' => 'datetime',
     ];
 
     public function exam()

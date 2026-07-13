@@ -73,6 +73,10 @@ class ExaminerController extends Controller
             }
         }
 
+        // Set scanned_at immediately on scan to trigger "Station Occupied" warning for waiting students
+        $progression->scanned_at = now();
+        $progression->save();
+
         // Check if student has finished
         if ($progression->status === 'completed') {
             return response()->json([
@@ -159,12 +163,13 @@ class ExaminerController extends Controller
             return response()->json(['message' => 'Progression introuvable. Veuillez d\'abord scanner l\'étudiant.'], 400);
         }
 
-        $progression->scanned_at = now();
+        $progression->timer_started_at = now();
         $progression->save();
 
         return response()->json([
             'message' => 'Chronomètre démarré.',
             'scanned_at' => $progression->scanned_at,
+            'timer_started_at' => $progression->timer_started_at,
         ]);
     }
 
@@ -203,8 +208,9 @@ class ExaminerController extends Controller
                 $request->duration
             );
 
-            // Clear scanned_at after processing (for tablet stations)
+            // Clear scan and timer state after processing
             $progression->scanned_at = null;
+            $progression->timer_started_at = null;
             $progression->save();
 
             // Load relations to return full update

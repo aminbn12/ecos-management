@@ -24,7 +24,7 @@ const TabletTaskView = () => {
       setProfileData(response.data);
       
       const progression = response.data?.progression;
-      const isScanned = progression?.scanned_at !== null;
+      const isScanned = progression?.timer_started_at !== null;
       setScanned(isScanned);
       
       // If student has already answered or completed, reflect it
@@ -103,14 +103,14 @@ const TabletTaskView = () => {
     return () => clearInterval(interval);
   }, [loading, profileData, scanned, submitted]);
 
-  // Sync with scanned_at
+  // Sync with timer_started_at
   useEffect(() => {
     const progression = profileData?.progression;
-    if (progression?.scanned_at && progression.status === 'in_progress') {
+    if (progression?.timer_started_at && progression.status === 'in_progress') {
       const calculateTimeLeft = () => {
-        const scannedTime = new Date(progression.scanned_at).getTime();
+        const startTime = new Date(progression.timer_started_at).getTime();
         const nowTime = new Date().getTime();
-        const elapsed = Math.floor((nowTime - scannedTime) / 1000);
+        const elapsed = Math.floor((nowTime - startTime) / 1000);
         const remaining = 300 - elapsed;
         return remaining > 0 ? remaining : 0;
       };

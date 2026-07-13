@@ -39,20 +39,20 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
     if (localStorage.getItem(storageTimerStartedKey) === 'true') {
       return true;
     }
-    return !!scanData?.progression?.scanned_at;
+    return !!scanData?.progression?.timer_started_at;
   });
   const [startingTimer, setStartingTimer] = useState(false);
 
-  // 5-minute countdown timer (300 seconds) - sync with scanned_at if already started
+  // 5-minute countdown timer (300 seconds) - sync with timer_started_at if already started
   const [timeLeft, setTimeLeft] = useState(() => {
     const savedTime = localStorage.getItem(storageTimeLeftKey);
     if (savedTime !== null) {
       return parseInt(savedTime, 10);
     }
-    if (scanData?.progression?.scanned_at) {
-      const scannedTime = new Date(scanData.progression.scanned_at).getTime();
+    if (scanData?.progression?.timer_started_at) {
+      const startTime = new Date(scanData.progression.timer_started_at).getTime();
       const nowTime = new Date().getTime();
-      const elapsed = Math.floor((nowTime - scannedTime) / 1000);
+      const elapsed = Math.floor((nowTime - startTime) / 1000);
       const remaining = 300 - elapsed;
       return remaining > 0 ? remaining : 0;
     }

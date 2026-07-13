@@ -87,9 +87,9 @@ class StudentController extends Controller
             return response()->json(['scanned' => false]);
         }
 
-        // Check if the current station is a tablet station and the student has been scanned
+        // Check if the current station is a tablet station and the student's timer has been started
         $isTabletStation = $progression->currentStation->type === 'student_tablet';
-        $isScanned = $progression->scanned_at !== null;
+        $isScanned = $progression->timer_started_at !== null;
 
         if ($isTabletStation && $isScanned) {
             return response()->json([
