@@ -27,9 +27,15 @@ class StudentController extends Controller
             return response()->json(['message' => 'Profil étudiant inexistant.'], 404);
         }
 
-        $progression = ExamProgression::with(['currentStation.evaluationForm', 'exam', 'results.station'])
-            ->where('student_id', $studentProfile->id)
-            ->first();
+        $activeExam = \App\Models\Exam::where('status', 'active')->first();
+        $progression = null;
+
+        if ($activeExam) {
+            $progression = ExamProgression::with(['currentStation.evaluationForm', 'exam', 'results.station'])
+                ->where('student_id', $studentProfile->id)
+                ->where('exam_id', $activeExam->id)
+                ->first();
+        }
 
         $showAverage = Setting::getValue('show_student_average', '0') === '1';
 
@@ -79,9 +85,15 @@ class StudentController extends Controller
             return response()->json(['scanned' => false]);
         }
 
-        $progression = ExamProgression::with(['currentStation.evaluationForm'])
-            ->where('student_id', $studentProfile->id)
-            ->first();
+        $activeExam = \App\Models\Exam::where('status', 'active')->first();
+        $progression = null;
+
+        if ($activeExam) {
+            $progression = ExamProgression::with(['currentStation.evaluationForm'])
+                ->where('student_id', $studentProfile->id)
+                ->where('exam_id', $activeExam->id)
+                ->first();
+        }
 
         if (!$progression || !$progression->currentStation) {
             return response()->json(['scanned' => false]);

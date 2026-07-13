@@ -55,9 +55,9 @@ class ExaminerController extends Controller
             ->where('exam_id', $station->exam_id)
             ->first();
 
-        // If no progression exists, and the station is Step 1 Initial, we can start it
+        // If no progression exists, and the station is an Initial station, we can start it
         if (!$progression) {
-            if ($station->step_number === 1 && !$station->is_reserve) {
+            if (!$station->is_reserve) {
                 $progression = ExamProgression::create([
                     'exam_id' => $station->exam_id,
                     'student_id' => $student->id,
@@ -68,7 +68,7 @@ class ExaminerController extends Controller
             } else {
                 return response()->json([
                     'error' => 'NotExpectedHere',
-                    'message' => "L'étudiant n'a pas commencé son examen. Il doit s'enregistrer à l'Étape 1 (Initiale)."
+                    'message' => "L'étudiant n'a pas commencé son examen. Il doit s'enregistrer sur une station Initiale (principale) pour démarrer."
                 ], 400);
             }
         }

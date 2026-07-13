@@ -317,7 +317,7 @@ const StudentProfile = () => {
         ) : (
           <div className="p-3 rounded-xl text-xs font-semibold text-center font-bold"
             style={{ background: 'var(--color-accent-bg)', color: 'var(--color-accent)' }}>
-            Examen en attente de démarrage (dirigez-vous vers la Station 1 Principale).
+            Examen en attente de démarrage (dirigez-vous vers votre première station).
           </div>
         )}
       </div>
