@@ -98,7 +98,7 @@ const TabletTaskView = () => {
       } catch (err) {
         console.warn("Error polling student scan status:", err);
       }
-    }, 3000);
+    }, 8000);
 
     return () => clearInterval(interval);
   }, [loading, profileData, scanned, submitted]);

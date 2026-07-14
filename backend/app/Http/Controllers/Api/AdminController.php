@@ -71,7 +71,7 @@ class AdminController extends Controller
             'code' => 'required|string',
         ]);
 
-        $correctCode = env('ADMIN_EXAM_TERMINATION_CODE', '2026');
+        $correctCode = Setting::getValue('admin_exam_termination_code', env('ADMIN_EXAM_TERMINATION_CODE', '2026'));
 
         if ($request->code !== $correctCode) {
             return response()->json([
@@ -114,6 +114,13 @@ class AdminController extends Controller
             $settings['allow_exam_deletion'] = '0';
         }
 
+        // Ensure admin_exam_termination_code exists
+        if (!isset($settings['admin_exam_termination_code'])) {
+            $defaultCode = env('ADMIN_EXAM_TERMINATION_CODE', '2026');
+            Setting::create(['key' => 'admin_exam_termination_code', 'value' => $defaultCode]);
+            $settings['admin_exam_termination_code'] = $defaultCode;
+        }
+
         return response()->json([
             'settings' => $settings
         ]);
@@ -133,6 +140,9 @@ class AdminController extends Controller
             ['key' => $request->key],
             ['value' => $request->value ?? '']
         );
+
+        // Invalidate cached setting value
+        \Illuminate\Support\Facades\Cache::forget("setting_{$request->key}");
 
         return response()->json([
             'message' => 'Paramètre enregistré.',
@@ -157,7 +167,7 @@ class AdminController extends Controller
             ], 403);
         }
 
-        $correctCode = env('ADMIN_EXAM_TERMINATION_CODE', '2026');
+        $correctCode = Setting::getValue('admin_exam_termination_code', env('ADMIN_EXAM_TERMINATION_CODE', '2026'));
 
         if ($request->code !== $correctCode) {
             return response()->json([
@@ -681,14 +691,12 @@ class AdminController extends Controller
     public function getExams()
     {
         $exams = Exam::withCount('progressions')
+            ->addSelect(['average_score' => EvaluationResult::selectRaw('ROUND(AVG(evaluation_results.score), 2)')
+                ->join('exam_progressions', 'exam_progressions.id', '=', 'evaluation_results.exam_progression_id')
+                ->whereColumn('exam_progressions.exam_id', 'exams.id')
+            ])
             ->orderBy('date', 'desc')
             ->get();
-
-        foreach ($exams as $exam) {
-            $progressionsIds = ExamProgression::where('exam_id', $exam->id)->pluck('id');
-            $avg = EvaluationResult::whereIn('exam_progression_id', $progressionsIds)->avg('score');
-            $exam->average_score = $avg ? round($avg, 2) : null;
-        }
 
         return response()->json([
             'exams' => $exams

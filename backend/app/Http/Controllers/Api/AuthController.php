@@ -25,6 +25,9 @@ class AuthController extends Controller
             ]);
         }
 
+        // Delete old tokens to prevent table bloat
+        $user->tokens()->delete();
+
         $token = $user->createToken('ecos-auth-token')->plainTextToken;
 
         return response()->json([

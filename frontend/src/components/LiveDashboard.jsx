@@ -197,7 +197,7 @@ const LiveDashboard = () => {
     fetchData();
     let interval;
     if (autoRefresh) {
-      interval = setInterval(fetchData, 4000);
+      interval = setInterval(fetchData, 10000);
     }
     return () => clearInterval(interval);
   }, [autoRefresh]);

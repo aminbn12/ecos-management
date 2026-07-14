@@ -7,6 +7,11 @@ use App\Http\Controllers\Api\StudentController;
 use App\Http\Middleware\CheckRole;
 use Illuminate\Support\Facades\Route;
 
+// Health check — no auth required
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok', 'timestamp' => now()->toISOString()]);
+});
+
 // Public authentication route
 Route::post('/auth/login', [AuthController::class, 'login']);
 

@@ -35,19 +35,38 @@ export const AuthProvider = ({ children }) => {
     }
     setIsLoading(false);
 
-    // Intercept 401 Unauthorized API responses to log out invalid/expired sessions
+    // Track consecutive 401 errors — only logout after 3 in a row
+    let consecutive401Count = 0;
+
     const interceptor = axios.interceptors.response.use(
-      response => response,
+      response => {
+        consecutive401Count = 0; // Reset on any success
+        return response;
+      },
       error => {
-        if (error.response && error.response.status === 401) {
-          localStorage.removeItem('ecos_token');
-          localStorage.removeItem('ecos_user');
-          delete axios.defaults.headers.common['Authorization'];
-          setUser(null);
-          setToken(null);
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
+        // Network error (server unreachable) — do NOT logout
+        if (!error.response) {
+          console.warn('Network error (server unreachable), keeping session alive.');
+          return Promise.reject(error);
+        }
+
+        if (error.response.status === 401) {
+          consecutive401Count++;
+          console.warn(`401 received (${consecutive401Count}/3)`);
+
+          if (consecutive401Count >= 3) {
+            // Confirmed: token is truly invalid
+            localStorage.removeItem('ecos_token');
+            localStorage.removeItem('ecos_user');
+            delete axios.defaults.headers.common['Authorization'];
+            setUser(null);
+            setToken(null);
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login';
+            }
           }
+        } else {
+          consecutive401Count = 0; // Reset on non-401 errors
         }
         return Promise.reject(error);
       }

@@ -25,6 +25,16 @@ const ExamHistory = () => {
   const [newDate, setNewDate] = useState('');
   const [creatingExam, setCreatingExam] = useState(false);
 
+  // Admin passcode confirmation modal
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    actionType: null, // 'terminate' or 'delete'
+    examId: null,
+    code: ''
+  });
+
   const loadExams = async () => {
     try {
       const res = await axios.get('/api/admin/exams');
@@ -202,67 +212,81 @@ const ExamHistory = () => {
     }
   };
 
-  const handleTerminateExam = async (examId) => {
-    const code = window.prompt("Veuillez saisir le code d'administration pour clôturer et archiver cet examen :");
-    if (code === null) return;
-    if (!code.trim()) {
-      alert("Le code est obligatoire pour procéder à la clôture.");
-      return;
-    }
-
-    try {
-      const res = await axios.post(`/api/admin/exams/${examId}/terminate`, { code });
-      setStatus({ type: 'success', message: res.data.message || 'Examen archivé avec succès.' });
-      loadExams();
-      if (selectedExam && selectedExam.id === examId) {
-        setSelectedExam({ ...selectedExam, status: 'completed' });
-      }
-    } catch (err) {
-      if (err.response && err.response.data && err.response.data.message) {
-        alert(err.response.data.message);
-      } else {
-        // Fallback for offline demo mode
-        if (code === '2026') {
-          setExams(exams.map(e => e.id === examId ? { ...e, status: 'completed' } : e));
-          setStatus({ type: 'success', message: "Mode Démo : Examen clôturé avec succès." });
-          if (selectedExam && selectedExam.id === examId) {
-            setSelectedExam({ ...selectedExam, status: 'completed' });
-          }
-        } else {
-          alert("Code incorrect. (Indice Mode Démo : 2026)");
-        }
-      }
-    }
+  const triggerTerminateConfirm = (examId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Clôturer et Archiver l'Examen",
+      message: "Veuillez saisir le code d'administration pour clôturer et archiver cet examen :",
+      actionType: 'terminate',
+      examId: examId,
+      code: ''
+    });
   };
 
-  const handleDeleteExam = async (examId) => {
-    const code = window.prompt("⚠️ ATTENTION : La suppression d'un examen supprimera TOUTES les progressions, stations, et notes de tous les candidats liés à cet examen. Cette action est irréversible !\n\nVeuillez saisir le code secret d'administration pour confirmer :");
-    if (code === null) return;
-    if (!code.trim()) {
-      alert("Le code secret est obligatoire pour supprimer l'examen.");
-      return;
-    }
+  const triggerDeleteConfirm = (examId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "⚠️ ATTENTION : Suppression définitive",
+      message: "La suppression d'un examen supprimera TOUTES les progressions, stations, et notes de tous les candidats liés à cet examen. Cette action est irréversible !\n\nVeuillez saisir le code secret d'administration pour confirmer :",
+      actionType: 'delete',
+      examId: examId,
+      code: ''
+    });
+  };
 
-    try {
-      const res = await axios.post(`/api/admin/exams/${examId}/delete`, { code });
-      setStatus({ type: 'success', message: res.data.message || 'Examen supprimé avec succès.' });
-      if (selectedExam && selectedExam.id === examId) {
-        setSelectedExam(null);
-      }
-      loadExams();
-    } catch (err) {
-      if (err.response && err.response.data && err.response.data.message) {
-        alert(err.response.data.message);
-      } else {
-        // Fallback for offline demo mode
-        if (code === '2026') {
-          setExams(exams.filter(e => e.id !== examId));
-          setStatus({ type: 'success', message: "Mode Démo : Examen supprimé avec succès." });
-          if (selectedExam && selectedExam.id === examId) {
-            setSelectedExam(null);
-          }
+  const handleConfirmModalSubmit = async (e) => {
+    e.preventDefault();
+    const { actionType, examId, code } = confirmModal;
+    if (!code.trim()) return;
+
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+
+    if (actionType === 'terminate') {
+      try {
+        const res = await axios.post(`/api/admin/exams/${examId}/terminate`, { code });
+        setStatus({ type: 'success', message: res.data.message || 'Examen archivé avec succès.' });
+        loadExams();
+        if (selectedExam && selectedExam.id === examId) {
+          setSelectedExam({ ...selectedExam, status: 'completed' });
+        }
+      } catch (err) {
+        if (err.response && err.response.data && err.response.data.message) {
+          alert(err.response.data.message);
         } else {
-          alert("Code incorrect. (Indice Mode Démo : 2026)");
+          // Fallback for offline demo mode
+          if (code === '2026') {
+            setExams(exams.map(e => e.id === examId ? { ...e, status: 'completed' } : e));
+            setStatus({ type: 'success', message: "Mode Démo : Examen clôturé avec succès." });
+            if (selectedExam && selectedExam.id === examId) {
+              setSelectedExam({ ...selectedExam, status: 'completed' });
+            }
+          } else {
+            alert("Code incorrect. (Indice Mode Démo : 2026)");
+          }
+        }
+      }
+    } else if (actionType === 'delete') {
+      try {
+        const res = await axios.post(`/api/admin/exams/${examId}/delete`, { code });
+        setStatus({ type: 'success', message: res.data.message || 'Examen supprimé avec succès.' });
+        if (selectedExam && selectedExam.id === examId) {
+          setSelectedExam(null);
+        }
+        loadExams();
+      } catch (err) {
+        if (err.response && err.response.data && err.response.data.message) {
+          alert(err.response.data.message);
+        } else {
+          // Fallback for offline demo mode
+          if (code === '2026') {
+            setExams(exams.filter(e => e.id !== examId));
+            setStatus({ type: 'success', message: "Mode Démo : Examen supprimé avec succès." });
+            if (selectedExam && selectedExam.id === examId) {
+              setSelectedExam(null);
+            }
+          } else {
+            alert("Code incorrect. (Indice Mode Démo : 2026)");
+          }
         }
       }
     }
@@ -452,7 +476,7 @@ const ExamHistory = () => {
                               ⏸️ Pause
                             </button>
                             <button
-                              onClick={() => handleTerminateExam(exam.id)}
+                              onClick={() => triggerTerminateConfirm(exam.id)}
                               className="py-1.5 px-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 rounded-lg text-[10px] font-bold transition"
                               title="Clôturer et archiver l'examen"
                             >
@@ -480,7 +504,7 @@ const ExamHistory = () => {
                         )}
                         {allowDeletion && (
                           <button
-                            onClick={() => handleDeleteExam(exam.id)}
+                            onClick={() => triggerDeleteConfirm(exam.id)}
                             className="py-1.5 px-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-lg text-[10px] font-bold transition"
                             title="Supprimer définitivement l'examen"
                           >
@@ -744,6 +768,52 @@ const ExamHistory = () => {
                 Fermer
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Passcode Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass-card p-6 rounded-3xl w-full max-w-md flex flex-col gap-4 animate-scale-up">
+            <h3 className="text-base font-extrabold t-text-heading border-b pb-2" style={{ borderColor: 'var(--color-border)' }}>
+              {confirmModal.title}
+            </h3>
+
+            <p className="text-xs t-text-secondary whitespace-pre-line leading-relaxed">
+              {confirmModal.message}
+            </p>
+
+            <form onSubmit={handleConfirmModalSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <input
+                  type="password"
+                  placeholder="Code de confirmation"
+                  value={confirmModal.code}
+                  onChange={(e) => setConfirmModal({ ...confirmModal, code: e.target.value })}
+                  className="glass-input p-2.5 rounded-xl text-sm"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                  className="px-4 py-2 border rounded-xl text-xs font-bold t-text-secondary"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold rounded-xl text-xs"
+                >
+                  Confirmer
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

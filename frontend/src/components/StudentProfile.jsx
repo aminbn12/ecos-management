@@ -115,7 +115,7 @@ const StudentProfile = () => {
   useEffect(() => {
     fetchProfile();
     // Poll profile updates every 4 seconds to sync scanner states
-    const poll = setInterval(fetchProfile, 4000);
+    const poll = setInterval(fetchProfile, 10000);
     return () => clearInterval(poll);
   }, []);
 

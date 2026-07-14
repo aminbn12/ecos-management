@@ -4,8 +4,10 @@ import axios from 'axios';
 const SettingsManager = () => {
   const [settings, setSettings] = useState({
     show_student_average: '0',
-    allow_exam_deletion: '0'
+    allow_exam_deletion: '0',
+    admin_exam_termination_code: '2026'
   });
+  const [tempCode, setTempCode] = useState('2026');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
@@ -13,10 +15,14 @@ const SettingsManager = () => {
   const loadSettings = async () => {
     try {
       const res = await axios.get('/api/admin/settings');
+      const loaded = res.data.settings;
       setSettings(prev => ({
         ...prev,
-        ...res.data.settings
+        ...loaded
       }));
+      if (loaded.admin_exam_termination_code) {
+        setTempCode(loaded.admin_exam_termination_code);
+      }
     } catch (err) {
       console.warn("API settings offline, running offline demo settings.");
     } finally {
@@ -49,6 +55,30 @@ const SettingsManager = () => {
     } catch (err) {
       console.warn("API settings offline, updated locally for demo.");
       setStatus({ type: 'success', message: 'Mode Démo : Paramètre mis à jour localement.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveCode = async (e) => {
+    e.preventDefault();
+    if (!tempCode.trim()) {
+      setStatus({ type: 'error', message: 'Le code ne peut pas être vide.' });
+      return;
+    }
+    setSaving(true);
+    setStatus({ type: '', message: '' });
+    try {
+      await axios.post('/api/admin/settings', {
+        key: 'admin_exam_termination_code',
+        value: tempCode
+      });
+      setSettings(prev => ({ ...prev, admin_exam_termination_code: tempCode }));
+      setStatus({ type: 'success', message: 'Code de confirmation mis à jour avec succès.' });
+    } catch (err) {
+      console.warn("API settings offline, updated locally for demo.");
+      setSettings(prev => ({ ...prev, admin_exam_termination_code: tempCode }));
+      setStatus({ type: 'success', message: 'Mode Démo : Code mis à jour localement.' });
     } finally {
       setSaving(false);
     }
@@ -127,9 +157,33 @@ const SettingsManager = () => {
           </button>
         </div>
 
-        {/* Placeholder for future options */}
-        <div className="text-[10px] t-text-muted text-center pt-2">
-          D'autres paramètres système seront configurables ici.
+        {/* Option 3: Admin confirmation code */}
+        <div className="flex flex-col gap-3 pb-2">
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-bold t-text-heading">Code secret d'administration</span>
+            <p className="text-xs t-text-secondary leading-relaxed">
+              Code de sécurité requis pour clôturer un examen en cours ou pour supprimer définitivement les examens archivés.
+            </p>
+          </div>
+          
+          <form onSubmit={handleSaveCode} className="flex gap-2 max-w-sm mt-1">
+            <input
+              type="text"
+              placeholder="Nouveau code"
+              value={tempCode}
+              onChange={(e) => setTempCode(e.target.value)}
+              disabled={saving}
+              className="glass-input px-3 py-1.5 rounded-xl text-xs flex-1"
+              required
+            />
+            <button
+              type="submit"
+              disabled={saving || tempCode === settings.admin_exam_termination_code}
+              className="px-4 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-500 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl text-xs transition-opacity duration-200"
+            >
+              Sauvegarder
+            </button>
+          </form>
         </div>
       </div>
     </div>
