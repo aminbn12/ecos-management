@@ -810,7 +810,7 @@ const FormBuilder = () => {
                       >
                         📄 Exemple CSV
                       </button>
-                      <label className="px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer">
+                      <label className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer">
                         📤 Importer CSV
                         <input
                           type="file"
@@ -1034,7 +1034,7 @@ const FormBuilder = () => {
                 <button 
                   type="submit" 
                   className="w-full mt-4 py-3 text-white font-bold rounded-xl text-sm transition"
-                  style={{ background: 'linear-gradient(135deg, var(--color-accent), #155E75)' }}
+                  style={{ background: 'linear-gradient(135deg, var(--color-accent), #6D28D9)' }}
                 >
                   💾 Enregistrer la Grille et son Barème
                 </button>

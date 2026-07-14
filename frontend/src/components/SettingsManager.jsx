@@ -127,7 +127,7 @@ const SettingsManager = () => {
           <button
             onClick={() => handleToggle('show_student_average')}
             disabled={saving}
-            className={`w-14 h-8 rounded-full p-1 transition-colors duration-200 focus:outline-none flex items-center relative ${settings.show_student_average === '1' ? 'bg-cyan-600' : 'bg-gray-400 dark:bg-gray-700'}`}
+            className={`w-14 h-8 rounded-full p-1 transition-colors duration-200 focus:outline-none flex items-center relative ${settings.show_student_average === '1' ? 'bg-purple-600' : 'bg-gray-400 dark:bg-gray-700'}`}
             aria-label="Toggle setting"
           >
             <span
@@ -148,7 +148,7 @@ const SettingsManager = () => {
           <button
             onClick={() => handleToggle('allow_exam_deletion')}
             disabled={saving}
-            className={`w-14 h-8 rounded-full p-1 transition-colors duration-200 focus:outline-none flex items-center relative ${settings.allow_exam_deletion === '1' ? 'bg-cyan-600' : 'bg-gray-400 dark:bg-gray-700'}`}
+            className={`w-14 h-8 rounded-full p-1 transition-colors duration-200 focus:outline-none flex items-center relative ${settings.allow_exam_deletion === '1' ? 'bg-purple-600' : 'bg-gray-400 dark:bg-gray-700'}`}
             aria-label="Toggle setting"
           >
             <span
@@ -179,7 +179,7 @@ const SettingsManager = () => {
             <button
               type="submit"
               disabled={saving || tempCode === settings.admin_exam_termination_code}
-              className="px-4 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-500 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl text-xs transition-opacity duration-200"
+              className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl text-xs transition-opacity duration-200"
             >
               Sauvegarder
             </button>

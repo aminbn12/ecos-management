@@ -375,7 +375,7 @@ const ScannerKiosk = ({ onScanSuccess }) => {
           <button
             onClick={openCamera}
             disabled={loading}
-            className="w-full py-4 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white font-extrabold rounded-2xl text-base shadow-lg shadow-cyan-500/20 transition-all duration-200 active:scale-[0.97] flex items-center justify-center gap-3 disabled:opacity-50"
+            className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-2xl text-base shadow-lg shadow-purple-500/20 transition-all duration-200 active:scale-[0.97] flex items-center justify-center gap-3 disabled:opacity-50"
           >
             <span className="text-2xl">📷</span>
             Scanner par Caméra

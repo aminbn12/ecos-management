@@ -239,7 +239,7 @@ const StudentManager = () => {
               >
                 📄 Exemple CSV
               </button>
-              <label className="py-2 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center">
+              <label className="py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center">
                 📤 Importer CSV
                 <input
                   type="file"

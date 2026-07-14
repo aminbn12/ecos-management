@@ -325,7 +325,7 @@ const ExamHistory = () => {
         </div>
         <button
           onClick={() => setCreatingExam(true)}
-          className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-xl text-xs transition shadow-md"
+          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs transition shadow-md"
         >
           ➕ Planifier un Examen
         </button>
@@ -638,9 +638,9 @@ const ExamHistory = () => {
                 >
                   Annuler
                 </button>
-                <button
+                 <button
                   type="submit"
-                  className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-bold rounded-xl text-xs"
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs"
                 >
                   Créer & Activer
                 </button>

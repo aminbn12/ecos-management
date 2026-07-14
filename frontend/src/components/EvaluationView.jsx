@@ -296,7 +296,7 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
 
           <button 
             onClick={onBackToKiosk}
-            className="w-full mt-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-xl text-sm transition duration-150"
+            className="w-full mt-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl text-sm transition duration-150"
           >
             Retour au Kiosque
           </button>
@@ -311,8 +311,8 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
       {!timerStarted && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="glass-card p-8 rounded-3xl max-w-md w-full flex flex-col items-center gap-6 animate-scale-up text-center border" style={{ borderColor: 'var(--color-accent)' }}>
-            <div className="w-20 h-20 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30">
-              <span className="text-4xl text-cyan-400">⏱️</span>
+            <div className="w-20 h-20 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/30">
+              <span className="text-4xl text-purple-400">⏱️</span>
             </div>
             
             <div>
@@ -341,7 +341,7 @@ const EvaluationView = ({ scanData, onBackToKiosk }) => {
               <button 
                 onClick={handleStartTimer}
                 disabled={startingTimer}
-                className="flex-1 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-xl text-xs shadow-lg transition"
+                className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs shadow-lg transition"
               >
                 {startingTimer ? 'Démarrage...' : '▶ Démarrer l\'Épreuve'}
               </button>

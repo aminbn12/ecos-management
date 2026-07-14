@@ -156,7 +156,7 @@ const LoginView = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-xl text-sm transition duration-150 mt-1 shadow-lg shadow-teal-500/20"
+            className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl text-sm transition duration-150 mt-1 shadow-lg shadow-purple-500/20"
           >
             {loading ? 'Connexion...' : 'Se Connecter'}
           </button>
@@ -255,7 +255,7 @@ const ExaminerStationFlow = () => {
             {qcmStarted ? (
               <button 
                 onClick={() => setActiveScan(null)}
-                className="w-full mt-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-xl text-sm transition duration-150"
+                className="w-full mt-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl text-sm transition duration-150"
               >
                 Retour au Kiosque
               </button>
@@ -270,7 +270,7 @@ const ExaminerStationFlow = () => {
                 <button 
                   onClick={handleStartQcm}
                   disabled={startingQcm}
-                  className="flex-1 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-xl text-xs shadow-lg transition"
+                  className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs shadow-lg transition"
                 >
                   {startingQcm ? 'Lancement...' : '▶ Démarrer le QCM'}
                 </button>

@@ -395,7 +395,7 @@ const TabletTaskView = () => {
             <button
               onClick={handleSubmitAnswer}
               disabled={submitting || selectedOptionIdx === null}
-              className="w-full py-3.5 bg-gradient-to-r from-indigo-500 to-cyan-500 text-white font-bold rounded-xl text-sm transition"
+              className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl text-sm transition"
             >
               {submitting ? 'Validation...' : 'Valider ma Réponse'}
             </button>
